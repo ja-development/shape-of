@@ -1,0 +1,25 @@
+{
+  "name": "shape-of",
+  "version": "0.0.1",
+  "description": "A lightweight schema validator for JSON endpoints.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ja-development/shape-of.git"
+  },
+  "keywords": [
+    "json",
+    "schema",
+    "validator",
+    "javascript"
+  ],
+  "author": "Jeff Allen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ja-development/shape-of/issues"
+  },
+  "homepage": "https://github.com/ja-development/shape-of#readme"
+}
