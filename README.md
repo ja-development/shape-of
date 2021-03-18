@@ -97,9 +97,9 @@ let result = shapeOf(obj).throwsOnInvalid.shouldBe(schema);   // throws an excep
 shapeOf supports event listeners for when validation fails, passes, and/or completes:
 | Function Name | Description | Listener Parameters |
 | ------------- | ----------- | ------------------- |
-| `shapeOf().onValid(callback)` | Executes `callback` whenever validation passes. | `obj`: the object being evaluated, `schema`: the schema object |
-| `shapeOf().onInvalid(callback)` | Executes `callback` whenever validation fails. | `obj`: the object being evaluated, `schema`: the schema object |
-| `shapeOf().onComplete(callback)` | Executes `callback` whenever validation completes. If an exception is thrown, `callback` is NOT executed. | `obj`: the object being evaluated, `schema`: the schema object |
+| `shapeOf().onValid(callback)` | Executes `callback` whenever validation passes. | `obj`: the object being evaluated<br> `schema`: the schema object |
+| `shapeOf().onInvalid(callback)` | Executes `callback` whenever validation fails. | `obj`: the object being evaluated<br> `schema`: the schema object |
+| `shapeOf().onComplete(callback)` | Executes `callback` whenever validation completes. If an exception is thrown, `callback` is NOT executed. | `obj`: the object being evaluated<br> `schema`: the schema object |
 
 
 Example of handling a passed validation by adding the `.onValid()` chain call after a `shapeOf()` call:
