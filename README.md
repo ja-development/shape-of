@@ -22,8 +22,12 @@ let obj = {
 
 // Execute validation and store results in passingResult
 let passingResult = shapeOf(obj).shouldBe(schema);   // true
-
+```
+```javascript
 // Invalid object shape ('foo' field is a number)
+let schema = {
+  'foo': shapeOf.string
+};
 let malformedObj = {'foo': 42};
 let failingResult = shapeOf(malformedObj).shouldBe(schema);   // false
 ```
