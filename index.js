@@ -26,8 +26,12 @@
  * SOFTWARE.
  */
 
-let shapeOf = function(obj) {
-	return shapeOf._buildActions(this, obj);
+;let shapeOf;
+
+(function() {
+
+shapeOf = function(obj) {
+	return _buildActions(this, obj);
 };
 
 /**
@@ -47,7 +51,7 @@ let shapeOf = function(obj) {
  * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @return     {object}  An object for making chained calls
  */
-shapeOf._buildActions = (thisObj, obj, options) => {
+let _buildActions = (thisObj, obj, options) => {
 	options = options || {};
 	let exclude = options.exclude || [];
 	let rtn = {};
@@ -60,25 +64,25 @@ shapeOf._buildActions = (thisObj, obj, options) => {
 	delete options.exclude;
 
 	if (exclude.indexOf('shouldBe') === -1)
-		rtn.shouldBe = shapeOf._shouldBe.bind(thisObj, { obj, ...options });
+		rtn.shouldBe = _shouldBe.bind(thisObj, { obj, ...options });
 
 	if (exclude.indexOf('shouldBeExactly') === -1)
-		rtn.shouldBeExactly = shapeOf._shouldBe.bind(thisObj, { obj, exact: true, ...options });
+		rtn.shouldBeExactly = _shouldBe.bind(thisObj, { obj, exact: true, ...options });
 
 	if (exclude.indexOf('shouldNotBe') === -1)
-		rtn.shouldNotBe = ((obj, schema) => !shapeOf._shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
+		rtn.shouldNotBe = ((obj, schema) => !_shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
 
 	if (exclude.indexOf('throwsOnInvalid') === -1)
-		rtn.throwsOnInvalid = shapeOf._buildThrowsOnExceptionActions(thisObj, obj, options);
+		rtn.throwsOnInvalid = _buildThrowsOnExceptionActions(thisObj, obj, options);
 
 	if (exclude.indexOf('onInvalid') === -1)
-		rtn.onInvalid = shapeOf._onInvalid.bind(thisObj, thisObj, { obj, ...options });
+		rtn.onInvalid = _onInvalid.bind(thisObj, thisObj, { obj, ...options });
 
 	if (exclude.indexOf('onValid') === -1)
-		rtn.onValid = shapeOf._onValid.bind(thisObj, thisObj, { obj, ...options });
+		rtn.onValid = _onValid.bind(thisObj, thisObj, { obj, ...options });
 
 	if (exclude.indexOf('onComplete') === -1)
-		rtn.onComplete = shapeOf._onComplete.bind(thisObj, thisObj, { obj, ...options });
+		rtn.onComplete = _onComplete.bind(thisObj, thisObj, { obj, ...options });
 
 	return rtn;
 };
@@ -91,15 +95,15 @@ shapeOf._buildActions = (thisObj, obj, options) => {
  * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @return     {Function}  The .throwsOnException actions.
  */
-shapeOf._buildThrowsOnExceptionActions = (thisObj, obj, options) => {
+let _buildThrowsOnExceptionActions = (thisObj, obj, options) => {
 	let extOptions = {
 		obj,
 		exclude: ['throwsOnInvalid'],
 		throwOnInvalid: true,
 		...options
 	};
-	extOptions.baseObject = shapeOf._throwsOnInvalid.bind(thisObj, thisObj, extOptions);
-	return shapeOf._buildActions(thisObj, obj, extOptions);
+	extOptions.baseObject = _throwsOnInvalid.bind(thisObj, thisObj, extOptions);
+	return _buildActions(thisObj, obj, extOptions);
 };
 
 /**
@@ -110,11 +114,11 @@ shapeOf._buildThrowsOnExceptionActions = (thisObj, obj, options) => {
  * @param      {object}  errorObj  The error object to throw if validation fails
  * @return     {object}  An object for making chained calls
  */
-shapeOf._throwsOnInvalid = (thisObj, options, errorObj) => {
+let _throwsOnInvalid = (thisObj, options, errorObj) => {
 	if (errorObj) {
 		options.errorObj = errorObj;
 	}
-	return shapeOf._buildThrowsOnExceptionActions(thisObj, options.obj, options);
+	return _buildThrowsOnExceptionActions(thisObj, options.obj, options);
 };
 
 /**
@@ -125,10 +129,10 @@ shapeOf._throwsOnInvalid = (thisObj, options, errorObj) => {
  * @param      {Function}  callback  The callback to execute on an invalid evaluation
  * @return     {object}  An object for making chained calls
  */
-shapeOf._onInvalid = (thisObj, options, callback) => {
+let _onInvalid = (thisObj, options, callback) => {
 	let callbacks = options.onInvalid || [];
 	callbacks.push(callback);
-	return shapeOf._buildActions(thisObj, options.obj, {onInvalid: callbacks, ...options});
+	return _buildActions(thisObj, options.obj, {onInvalid: callbacks, ...options});
 };
 
 /**
@@ -139,10 +143,10 @@ shapeOf._onInvalid = (thisObj, options, callback) => {
  * @param      {Function}  callback  The callback to execute on a valid evaluation
  * @return     {object}  An object for making chained calls
  */
-shapeOf._onValid = (thisObj, options, callback) => {
+let _onValid = (thisObj, options, callback) => {
 	let callbacks = options.onValid || [];
 	callbacks.push(callback);
-	return shapeOf._buildActions(thisObj, options.obj, {onValid: callbacks, ...options});
+	return _buildActions(thisObj, options.obj, {onValid: callbacks, ...options});
 };
 
 /**
@@ -156,10 +160,10 @@ shapeOf._onValid = (thisObj, options, callback) => {
  * @param      {Function}  callback  The callback to execute after a valid evaluation, or an invalid evaluation without a .throwsOnInvalid toggle
  * @return     {object}  An object for making chained calls
  */
-shapeOf._onComplete = (thisObj, options, callback) => {
+let _onComplete = (thisObj, options, callback) => {
 	let callbacks = options.onComplete || [];
 	callbacks.push(callback);
-	return shapeOf._buildActions(thisObj, options.obj, {onComplete: callbacks, ...options});
+	return _buildActions(thisObj, options.obj, {onComplete: callbacks, ...options});
 };
 
 /**
@@ -169,13 +173,13 @@ shapeOf._onComplete = (thisObj, options, callback) => {
  * @param      {object}   schema   The schema supplied by the .shouldBe() call
  * @return     {boolean}  True if object in question follows provided schema
  */
-shapeOf._shouldBe = (options, schema) => {
+let _shouldBe = (options, schema) => {
 	let obj = options.obj;
 	let rtn = false;
 	if (typeof schema === 'function') {
 		rtn = typeof schema(obj) !== 'undefined';
 	} else if (typeof schema === 'object') {
-		rtn = typeof shapeOf._object(obj, schema, options) !== 'undefined';
+		rtn = typeof _object(obj, schema, options) !== 'undefined';
 	} else {
 		// rtn = typeof schema === typeof obj;
 		rtn = schema === obj;
@@ -206,7 +210,7 @@ shapeOf._shouldBe = (options, schema) => {
  * @param      {object}   options  The accumulated options from the shapeOf chain calls
  * @return     {boolean}  True if object matches schema
  */
-shapeOf._object = (obj, schema, options) => {
+let _object = (obj, schema, options) => {
 	if (typeof obj !== 'object')
 		return;
 
@@ -224,7 +228,7 @@ shapeOf._object = (obj, schema, options) => {
 		}
 		let valInQuestion = obj[schemaKey];
 
-		if (!shapeOf._shouldBe({...options, obj: valInQuestion}, expected))
+		if (!_shouldBe({...options, obj: valInQuestion}, expected))
 			return;
 	}
 
@@ -250,7 +254,7 @@ shapeOf.string = (obj) => {
 	if (typeof obj === 'string')
 		return obj;
 };
-shapeOf.string._evaluator = true;
+shapeOf.string._validator = true;
 
 /**
  * Validator for array types.
@@ -262,7 +266,7 @@ shapeOf.array = (obj) => {
 	if (Array.isArray(obj))
 		return obj;
 };
-shapeOf.array._evaluator = true;
+shapeOf.array._validator = true;
 
 /**
  * Validator for boolean types.
@@ -274,7 +278,7 @@ shapeOf.bool = (obj) => {
 	if (typeof obj === 'boolean')
 		return obj;
 };
-shapeOf.bool._evaluator = true;
+shapeOf.bool._validator = true;
 shapeOf.boolean = shapeOf.bool;
 
 /**
@@ -287,7 +291,192 @@ shapeOf.number = (obj) => {
 	if (typeof obj === 'number')
 		return obj;
 };
-shapeOf.number._evaluator = true;
+shapeOf.number._validator = true;
+
+/**
+ * Validator generator for number types within a specific range.
+ *
+ * @param      {number}  min     The lower acceptable range for the number
+ * @param      {number}  max     The upper acceptable range for the number
+ * @return     {Function}  Returns an validator function specific to the number range
+ */
+shapeOf.number.range = function(min, max) {
+	let rtn = _number_range.bind(null, min, max);
+	rtn._validator = true;
+	rtn._optional = this._optional;
+	return rtn;
+};
+shapeOf.number.range._validator = true;
+
+/**
+ * Validator function used in validator generation from the shapeOf.number.range() function.
+ *
+ * @param      {number}    min     The minimum
+ * @param      {number}    max     The maximum
+ * @param      {number}    obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _number_range = (min, max, obj) => {
+	let nmin = Math.min(min, max);
+	let nmax = Math.max(min, max);
+	if (typeof obj === 'number') {
+		if (obj <= nmax && obj >= nmin)
+			return obj;
+	}
+};
+
+/**
+ * Validator generator for number types with a min value.
+ *
+ * @param      {number}  min     The lower acceptable range for the number
+ * @return     {Function}  Returns an validator function specific to the number range
+ */
+shapeOf.number.min = function(min) {
+	let rtn = _number_min.bind(null, min);
+	rtn._validator = true;
+	rtn._optional = this._optional;
+	return rtn;
+};
+
+/**
+ * Validator function used in validator generation from the shapeOf.number.min() function.
+ *
+ * @param      {number}    min     The minimum
+ * @param      {number}    obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _number_min = (min, obj) => {
+	if (typeof obj === 'number') {
+		if (obj >= min)
+			return obj;
+	}
+};
+
+/**
+ * Validator generator for number types with a max value.
+ *
+ * @param      {number}  max     The upper acceptable range for the number
+ * @return     {Function}  Returns an validator function specific to the number range
+ */
+shapeOf.number.max = function(max) {
+	let rtn = _number_max.bind(null, max);
+	rtn._validator = true;
+	rtn._optional = this._optional;
+	return rtn;
+};
+
+/**
+ * Validator function used in validator generation from the shapeOf.number.max() function.
+ *
+ * @param      {number}    max     The maximum
+ * @param      {number}    obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _number_max = (max, obj) => {
+	if (typeof obj === 'number') {
+		if (obj <= max)
+			return obj;
+	}
+};
+
+/**
+ * Validator for integer types.
+ *
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+shapeOf.integer = (obj) => {
+	if (_isInteger(obj)) {
+		return obj;
+	}
+};
+shapeOf.integer._validator = true;
+
+/**
+ * Validator generator for integer types within a specific range.
+ *
+ * @param      {number}  min     The lower acceptable range for the number
+ * @param      {number}  max     The upper acceptable range for the number
+ * @return     {Function}  Returns an validator function specific to the number range
+ */
+shapeOf.integer.range = function(min, max) {
+	let rtn = _integer_range.bind(null, min, max);
+	rtn._validator = true;
+	rtn._optional = this._optional;
+	return rtn;
+};
+shapeOf.integer.range._validator = true;
+
+/**
+ * Validator function used in validator generation from the shapeOf.integer.range() function.
+ *
+ * @param      {number}    min     The minimum
+ * @param      {number}    max     The maximum
+ * @param      {number}    obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _integer_range = (min, max, obj) => {
+	let nmin = Math.min(min, max);
+	let nmax = Math.max(min, max);
+	if (_isInteger(obj)) {
+		if (obj <= nmax && obj >= nmin)
+			return obj;
+	}
+};
+
+/**
+ * Validator generator for integer types with a min value.
+ *
+ * @param      {number}  min     The lower acceptable range for the number
+ * @return     {Function}  Returns an validator function specific to the number range
+ */
+shapeOf.integer.min = function(min) {
+	let rtn = _integer_min.bind(null, min);
+	rtn._validator = true;
+	rtn._optional = this._optional;
+	return rtn;
+};
+
+/**
+ * Validator function used in validator generation from the shapeOf.integer.min() function.
+ *
+ * @param      {number}    min     The minimum
+ * @param      {number}    obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _integer_min = (min, obj) => {
+	if (_isInteger(obj)) {
+		if (obj >= min)
+			return obj;
+	}
+};
+
+/**
+ * Validator generator for integer types with a max value.
+ *
+ * @param      {number}  max     The upper acceptable range for the number
+ * @return     {Function}  Returns an validator function specific to the number range
+ */
+shapeOf.integer.max = function(max) {
+	let rtn = _integer_max.bind(null, max);
+	rtn._validator = true;
+	rtn._optional = this._optional;
+	return rtn;
+};
+
+/**
+ * Validator function used in validator generation from the shapeOf.integer.max() function.
+ *
+ * @param      {number}    max     The maximum
+ * @param      {number}    obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _integer_max = (max, obj) => {
+	if (_isInteger(obj)) {
+		if (obj <= max)
+			return obj;
+	}
+};
 
 /**
  * Validator for object types. Null isn't considered an object and instead passes with shapeOf.null.
@@ -299,7 +488,7 @@ shapeOf.object = (obj) => {
 	if (typeof obj === 'object' && obj !== null)
 		return obj;
 };
-shapeOf.object._evaluator = true;
+shapeOf.object._validator = true;
 
 /**
  * Validator for null types.
@@ -311,7 +500,7 @@ shapeOf.null = (obj) => {
 	if (obj === null)
 		return obj;
 };
-shapeOf.null._evaluator = true;
+shapeOf.null._validator = true;
 
 /**
  * Validator for primitive types, which can be string, boolean, number, or null.
@@ -322,7 +511,7 @@ shapeOf.null._evaluator = true;
 shapeOf.primitive = (obj) => {
 	return shapeOf.string(obj) || shapeOf.bool(obj) || shapeOf.number(obj) || shapeOf.null(obj);
 };
-shapeOf.primitive._evaluator = true;
+shapeOf.primitive._validator = true;
 
 /**
  * Validator for an array of one or more types. Can accept variadic arguments, or a single array containing validators.
@@ -335,10 +524,10 @@ shapeOf.primitive._evaluator = true;
  * @return     {Function}  A validator bound to the specific types
  */
 shapeOf.arrayOf = (types, ...args) => {
-	types = shapeOf._transformToArray(types, args);
-	return shapeOf._arrayOf.bind(null, types);
+	types = _transformToArray(types, args);
+	return _arrayOf.bind(null, types);
 };
-shapeOf.arrayOf._evaluator = true;
+shapeOf.arrayOf._validator = true;
 
 /**
  * Validator that gets bound to specific types from a shapeOf.arrayOf() call.
@@ -347,7 +536,7 @@ shapeOf.arrayOf._evaluator = true;
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if is valid, otherwise undefined
  */
-shapeOf._arrayOf = (types, obj) => {
+let _arrayOf = (types, obj) => {
 	if (!Array.isArray(types))
 		types = [types];
 	if (!Array.isArray(obj))
@@ -376,10 +565,10 @@ shapeOf._arrayOf = (types, obj) => {
  * @return     {Function}  A validator bound to the specific types
  */
 shapeOf.objectOf = (types, ...args) => {
-	types = shapeOf._transformToArray(types, args);
-	return shapeOf._objectOf.bind(null, types);
+	types = _transformToArray(types, args);
+	return _objectOf.bind(null, types);
 };
-shapeOf.objectOf._evaluator = true;
+shapeOf.objectOf._validator = true;
 
 /**
  * Validator that gets bound to specific types from a shapeOf.objectOf() call.
@@ -388,7 +577,7 @@ shapeOf.objectOf._evaluator = true;
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if is valid, otherwise undefined
  */
-shapeOf._objectOf = (types, obj) => {
+let _objectOf = (types, obj) => {
 	if (!Array.isArray(types))
 		types = [types];
 	if (typeof obj !== 'object' || obj === null)
@@ -419,10 +608,10 @@ shapeOf._objectOf = (types, obj) => {
  * @return     {Function}  A validator bound to the specific types
  */
 shapeOf.oneOf = (list, ...args) => {
-	list = shapeOf._transformToArray(list, args);
-	return shapeOf._oneOf.bind(null, list);
+	list = _transformToArray(list, args);
+	return _oneOf.bind(null, list);
 };
-shapeOf.oneOf._evaluator = true;
+shapeOf.oneOf._validator = true;
 
 /**
  * Validator that gets bound to specific types from a shapeOf.oneOf() call.
@@ -431,7 +620,7 @@ shapeOf.oneOf._evaluator = true;
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if is valid, otherwise undefined
  */
-shapeOf._oneOf = (list, obj) => {
+let _oneOf = (list, obj) => {
 	for (let i = list.length - 1; i >= 0; i--) {
 		if (list[i] === obj)
 			return obj;
@@ -449,10 +638,10 @@ shapeOf._oneOf = (list, obj) => {
  * @return     {Function}  A validator bound to the specific types
  */
 shapeOf.oneOfType = (list, ...args) => {
-	list = shapeOf._transformToArray(list, args);
-	return shapeOf._oneOfType.bind(null, list);
+	list = _transformToArray(list, args);
+	return _oneOfType.bind(null, list);
 };
-shapeOf.oneOfType._evaluator = true;
+shapeOf.oneOfType._validator = true;
 
 /**
  * Validator that gets bound to specific types from a shapeOf.oneOfType() call.
@@ -461,12 +650,56 @@ shapeOf.oneOfType._evaluator = true;
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if is valid, otherwise undefined
  */
-shapeOf._oneOfType = (list, obj) => {
+let _oneOfType = (list, obj) => {
 	for (let i = list.length - 1; i >= 0; i--) {
 		if (shapeOf(obj).shouldBe(list[i]))
 			return obj;
 	}
 };
+
+/**
+ * Generates optional equivalents of evaluator functions attached to the provided object, obj.
+ * Any function is considered an evaluator function if the ._validator property is truthy on that function.
+ * 
+ * Once generated, the optional functions are usually attached as the obj.optional object. For example, attaching to shapeOf:
+ *   shapeOf.optional.string   // The "optional" evaluator equivalent to shapeOf.string
+ *   
+ * Optional values are only used within a key-value paired object and apply to the key. Example using shapeOf:
+ *   shapeOf({'foo': 'bar'}).shouldBe({'foo': shapeOf.string, 'baz': shapeOf.optional.primitive});   // true
+ *
+ * @param      {object}  obj     The object to generate optional validators for
+ * @return     {object}  An object containing all of the optional equivalents of validator functions attached to obj
+ */
+let _optional = (obj) => {
+	let keys = Object.keys(obj);
+	let rtn = {};
+
+	for (let i = keys.length - 1; i >= 0; i--) {
+		let key = keys[i];
+		let baseFunc = obj[key];
+		if (key === 'optional' || key.startsWith('_'))
+			continue;
+		if (typeof baseFunc !== 'function')
+			continue;
+		if (!baseFunc._validator)
+			continue;
+
+		let optFunc = (...args) => baseFunc(...args);
+		let baseFuncKeys = Object.keys(baseFunc);
+		for (var j = baseFuncKeys.length - 1; j >= 0; j--) {
+			let baseKey = baseFuncKeys[j];
+			optFunc[baseKey] = baseFunc[baseKey];
+			if (baseFunc[baseKey]._validator)
+				optFunc[baseKey]._optional = true;
+		}
+		optFunc._optional = true;
+		rtn[key] = optFunc;
+	}
+
+	return rtn;
+};
+
+shapeOf.optional = _optional(shapeOf);
 
 /**
  * Utility function use to change either an array or an object and an array of variadic arguments into a single array.
@@ -475,7 +708,7 @@ shapeOf._oneOfType = (list, obj) => {
  * @param      {Array}   args    An array of additional variadic arguments
  * @return     {Array}   Normalized array of arguments
  */
-shapeOf._transformToArray = (list, args) => {
+let _transformToArray = (list, args) => {
 	if (!Array.isArray(list)) {
 		list = [list];
 		if (args) {
@@ -488,32 +721,15 @@ shapeOf._transformToArray = (list, args) => {
 };
 
 /**
- * Generates and attaches optional equivalents of evaluator functions attached to the shapeOf object.
- * Any function is considered an evaluator function if the ._evaluator property is truthy on that function.
- * 
- * Once generated, the optional functions are available through the shapeOf.optional object. For example:
- *   shapeOf.optional.string   // The "optional" evaluator equivalent to shapeOf.string
- *   
- * Optional values are only used within a key-value paired object and apply to the key. Example:
- *   shapeOf({'foo': 'bar'}).shouldBe({'foo': shapeOf.string, 'baz': shapeOf.optional.primitive});   // true
+ * Determines whether the specified value is an integer. Polyfill for Number.isInteger().
+ *
+ * @param      {number}   val     The value
+ * @return     {boolean}  True if the specified value is an integer, False otherwise.
  */
-shapeOf.optional = (() => {
-	let keys = Object.keys(shapeOf);
-	let rtn = {};
+let _isInteger = Number.isInteger || ((val) => {
+	return typeof val === 'number' && val === val && val !== Infinity && val !== -Infinity && Math.floor(val) === val;
+});
 
-	for (let i = keys.length - 1; i >= 0; i--) {
-		let key = keys[i];
-		if (key === 'optional' || key.startsWith('_'))
-			continue;
-		if (typeof shapeOf[key] !== 'function')
-			continue;
-		if (!shapeOf[key]._evaluator)
-			continue;
-		rtn[key] = (...args) => shapeOf[key](...args);
-		rtn[key]._optional = true;
-	}
-
-	return rtn;
 })();
 
 

@@ -159,6 +159,18 @@ expect(
 	shapeOf({}).shouldBe(shapeOf.primitive)
 ).isFalsy();
 
+expect(
+	shapeOf(4.2).shouldBe(shapeOf.integer)
+).isFalsy();
+
+expect(
+	shapeOf(-4.2).shouldBe(shapeOf.integer)
+).isFalsy();
+
+expect(
+	shapeOf(42).shouldBe(shapeOf.integer)
+).isTruthy();
+
 
 // Testing optional fields
 expect(
@@ -226,6 +238,76 @@ expect(
 	shapeOf({'foo': 'bar', 'baz': 'biz'}).shouldBeExactly({'foo': 'bar', 'baz': shapeOf.optional.string})
 ).isTruthy();
 
+
+// Testing number ranges (for both number and integer types)
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.number.range(0, 42))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.number.range(42, 0))
+).isTruthy();
+expect(
+	shapeOf(0).shouldBeExactly(shapeOf.number.range(42, 1))
+).isFalsy();
+expect(
+	shapeOf({'foo': 42}).shouldBeExactly({'foo': shapeOf.optional.number.range(0, 42)})
+).isTruthy();
+expect(
+	shapeOf(100).shouldBeExactly(shapeOf.number.min(100))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.optional.number.min(-1))
+).isTruthy();
+expect(
+	shapeOf(-2).shouldBeExactly(shapeOf.optional.number.min(-2))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.optional.number.max(42))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.number.max(-1))
+).isFalsy();
+expect(
+	shapeOf({'foo': 42}).shouldBeExactly({'foo': shapeOf.number, 'bar': shapeOf.optional.number.max(42)})
+).isTruthy();
+
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.integer.range(0, 42))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.integer.range(42, 0))
+).isTruthy();
+expect(
+	shapeOf(0).shouldBeExactly(shapeOf.integer.range(42, 1))
+).isFalsy();
+expect(
+	shapeOf({'foo': 42}).shouldBeExactly({'foo': shapeOf.optional.integer.range(0, 42)})
+).isTruthy();
+expect(
+	shapeOf(100).shouldBeExactly(shapeOf.integer.min(100))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.optional.integer.min(-1))
+).isTruthy();
+expect(
+	shapeOf(-2).shouldBeExactly(shapeOf.optional.integer.min(-2))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.optional.integer.max(42))
+).isTruthy();
+expect(
+	shapeOf(42).shouldBeExactly(shapeOf.integer.max(-1))
+).isFalsy();
+expect(
+	shapeOf({'foo': 42}).shouldBeExactly({'foo': shapeOf.integer, 'bar': shapeOf.optional.integer.max(42)})
+).isTruthy();
+
+expect(
+	shapeOf(4.2).shouldBeExactly(shapeOf.optional.integer.max(42))
+).isFalsy();
+expect(
+	shapeOf({'foo': 4.2}).shouldBeExactly({'foo': shapeOf.integer, 'bar': shapeOf.optional.integer.max(42)})
+).isFalsy();
 
 // 
 // Results

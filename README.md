@@ -1,6 +1,12 @@
 # shapeOf
 A lightweight schema validator for JSON endpoints.
 
+## Installation
+
+```
+npm install shape-of
+```
+
 ## Basic Usage
 A simple example of the `shapeOf()` function uses the `.shouldBe()` function to evaluate an object against a schema, which either returns a true or false value:
 ```javascript
@@ -28,7 +34,7 @@ A call to `shapeOf()` will only perform validation once `.shouldBe()` or `.shoul
 ## Strict Shape Enforcement
 Strict enforcement of object shapes be achieved with the `.shouldBeExactly()` function, which will fail objects with extraneous fields:
 ```javascript
-// Define the schema.
+// Define the schema
 let schema = {'foo': shapeOf.string, 'baz': shapeOf.string};
 
 // Valid object shape with an exact shape match
@@ -58,11 +64,22 @@ shapeOf supports validating the following primitive data types by default:
 | Array     | `shapeOf.array`   |
 | Boolean   | `shapeOf.bool`    |
 | Number    | `shapeOf.number`  |
+| Integer   | `shapeOf.integer` |
 | Object    | `shapeOf.object`  |
 | Null      | `shapeOf.null`    |
 | Primitive | `shapeOf.primitive` |
 
 *NOTE: The primitive data type includes strings, booleans, numbers, and null.*
+
+#### Primitive Number Type: Ranges
+The `shapeOf.number` validator also supports ranges, minimums, and maximums:
+| Function | Description |
+| -------- | ----------- |
+| `shapeOf.number.range(min, max)` | Validates if the number is between or at the `min` and `max` values |
+| `shapeOf.number.min(min)` | Validates if the number is above or at the `min` value |
+| `shapeOf.number.max(max)` | Validates if the number is above or at the `max` value |
+
+*NOTE: The number range functions are applicable to the integer primitive type as well.*
 
 ### Composite/Strict Type Validators
 In addition to primitive types, composites of primitive types are supported as well:
