@@ -1,7 +1,7 @@
 {
   "name": "shape-of",
-  "version": "0.0.2",
-  "description": "A lightweight schema validator for JSON endpoints.",
+  "version": "0.0.3",
+  "description": "A lightweight schema validator for JSON endpoints",
   "main": "index.min.js",
   "scripts": {
     "test": "node ./test.js"

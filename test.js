@@ -329,6 +329,17 @@ expect(
 	shapeOf('test').shouldBeExactly(shapeOf.string.ofSize(5, 10))
 ).isFalsy();
 
+// Testing string patterns
+expect(
+	shapeOf('Hello world!').shouldBeExactly(shapeOf.string.pattern(/^he[l]{2,2}o ....d!$/gi))
+).isTruthy();
+expect(
+	shapeOf('Hello world!').shouldBeExactly(shapeOf.string.pattern('^he[l]{2,2}o ....d!$', 'gi'))
+).isTruthy();
+expect(
+	shapeOf('Hello world!').shouldBeExactly(shapeOf.string.pattern(/^he[l]{2,2}o ....d!$/i, 'g'))
+).isFalsy();
+
 
 // 
 // Results

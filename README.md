@@ -1,11 +1,13 @@
 # shapeOf
 A lightweight schema validator for JSON endpoints and Plain Old JavaScript Objects (POJOs).
 
+
 ## Installation
 
 ```
 npm install shape-of
 ```
+
 
 ## Basic Usage
 A simple example of the `shapeOf()` function uses the `.shouldBe()` function to evaluate an object against a schema, which either returns a true or false value:
@@ -50,6 +52,7 @@ let result = shapeOf(obj).shouldBe(schema);   // true
 
 A call to `shapeOf()` will only perform validation once `.shouldBe()` or `.shouldBeExactly()` has been subsequently called.
 
+
 ## Strict Shape Enforcement
 Strict enforcement of object shapes be achieved with the `.shouldBeExactly()` function, which will fail objects with extraneous fields:
 ```javascript
@@ -75,6 +78,7 @@ let malformedObj = {
 let failingResult = shapeOf(malformedObj).shouldBeExactly(schema);   // false
 ```
 
+
 ## Optional Object Fields
 A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
 ```javascript
@@ -87,6 +91,7 @@ let schema = {
 };
 let result = shapeOf(obj).shouldBe(schema);   // true, despite a missing optional 'baz' field
 ```
+
 
 ## Type Validators
 
@@ -107,18 +112,26 @@ shapeOf supports validating the following primitive data types by default:
 
 #### Primitive Number Type: Ranges, Minimums, and Maximums
 The `shapeOf.number` and `shapeOf.integer` validators also support ranges, minimums, and maximums:
-| Function | Description |
-| -------- | ----------- |
+| Validator Function | Description |
+| ------------------ | ----------- |
 | `shapeOf.number.range(min, max)`<br>`shapeOf.integer.range(min, max)`| Validates if the number is between or at the `min` and `max` values |
 | `shapeOf.number.min(min)`<br>`shapeOf.integer.min(min)`<br>`shapeOf.number.greaterThanOrEqualTo(min)`<br>`shapeOf.integer.greaterThanOrEqualTo(min)` | Validates if the number is above or at the `min` value |
 | `shapeOf.number.max(max)`<br>`shapeOf.integer.max(max)`<br>`shapeOf.number.lessThanOrEqualTo(max)`<br>`shapeOf.integer.lessThanOrEqualTo(max)` | Validates if the number is above or at the `max` value |
 
 #### Primitive String Type: Length
 The `shapeOf.string` validator also supports minimum, maximum, and exact lengths:
-| Function | Description |
-| -------- | ----------- |
+| Validator Function | Description |
+| ------------------ | ----------- |
 | `shapeOf.string.size(exact)`<br>`shapeOf.string.ofSize(exact)` | Validates if the string has the `exact` character count |
 | `shapeOf.string.size(min, max)`<br>`shapeOf.string.ofSize(min, max)` | Validates if the string has a character count between `min` and `max` |
+
+#### Primitive String Type: Regular Expressions
+The `shapeOf.string` validator also supports regular expressions:
+| Validator Function | Description |
+| ------------------ | ----------- |
+| `shapeOf.string.pattern(regex)` | Validates if the string matches the given pattern `regex`, which can be either a string or a RegExp object |
+| `shapeOf.string.pattern(regex, flags)` | Validates if the string matches the given pattern `regex` using `flags`, which can be either a string or a RegExp object |
+
 
 ### Composite/Strict Type Validators
 In addition to primitive types, composites of primitive types are supported as well:
@@ -191,6 +204,7 @@ let failingObj = ['foo', 'bar', 'bar'];   // first element will fail, causing .s
 result = shapeOf(failingObj).shouldBe(failingObj);   // false
 ```
 
+
 ## Throwing Exceptions
 An evaluation of an object using shapeOf() can optionally throw an exception. To do so, add `.throwsOnInvalid` after a `shapeOf()` call:
 ```javascript
@@ -214,6 +228,7 @@ try {
   console.log('An exception was thrown during a shapeOf() validation', exception);
 }
 ```
+
 
 ## Validation Event Listeners
 shapeOf supports event listeners for when validation fails, passes, and/or completes:

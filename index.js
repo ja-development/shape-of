@@ -490,7 +490,7 @@ shapeOf.string.ofSize = shapeOf.string.size;
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if valid, undefined otherwise
  */
-_string_exactLength = (exact, obj) => {
+let _string_exactLength = (exact, obj) => {
 	if (typeof obj === 'string') {
 		if (obj.length === exact)
 			return obj;
@@ -505,12 +505,47 @@ _string_exactLength = (exact, obj) => {
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if valid, undefined otherwise
  */
-_string_rangeLength = (min, max, obj) => {
+let _string_rangeLength = (min, max, obj) => {
 	if (typeof obj === 'string') {
 		if (obj.length >= min && obj.length <= max)
 			return obj;
 	}
 };
+
+/**
+ * Validator generator for string types matching a given pattern.
+ *
+ * @param      {RegExp|string}  pattern  The pattern
+ * @param      {string}      regExpFlags  The flags to use if the pattern argument is a string
+ * @return     {Function}    Returns a validator function specific to the string pattern
+ */
+shapeOf.string.pattern = function(pattern, regExpFlags) {
+	if (typeof pattern !== 'string' && !(pattern instanceof RegExp))
+		throw 'shapeOf.string.pattern() only accepts strings and RegExp objects as an argument';
+	pattern = new RegExp(pattern, regExpFlags);
+	if (pattern instanceof RegExp) {
+		let rtn = _string_pattern.bind(null, pattern);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	}
+};
+
+/**
+ * Validator function used in validator generation from shapeOf.string.pattern() function.
+ *
+ * @param      {RegExp}  pattern  The pattern
+ * @param      {object}  obj      The object in question
+ * @return     {object}  Returns object if valid, undefined otherwise
+ */
+let _string_pattern = (pattern, obj) => {
+	if (typeof obj === 'string') {
+		if (pattern.test(obj))
+			return obj;
+	}
+};
+
+
 
 /**
  * Validator for array types.
