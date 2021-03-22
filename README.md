@@ -2,11 +2,18 @@
 A lightweight schema validator for JSON endpoints.
 
 ## Basic Usage
-A simple example of the `shapeOf()` function uses the `.shouldBe()` function to evaluate an object against a schema:
+A simple example of the `shapeOf()` function uses the `.shouldBe()` function to evaluate an object against a schema, which either returns a true or false value:
 ```javascript
-let obj =    {'foo': 'bar'};
+// Define a schema that expects an object with a 'foo' field, which is expected to be a string
 let schema = {'foo': shapeOf.string};
-let result = shapeOf(obj).shouldBe(schema);   // true
+
+// Valid object shape
+let obj = {'foo': 'bar'};
+let passingResult = shapeOf(obj).shouldBe(schema);   // true
+
+// Invalid object shape ('foo' field is a number)
+let malformedObj = {'foo': 42};
+let failingResult = shapeOf(malformedObj).shouldBe(schema);   // false
 ```
 
 Nesting is also supported:
@@ -16,7 +23,30 @@ let schema = {'foo': {'bar': shapeOf.string}};
 let result = shapeOf(obj).shouldBe(schema);   // true
 ```
 
-A call to `shapeOf()` will only perform validation once `.shouldBe()` has been subsequently called.
+A call to `shapeOf()` will only perform validation once `.shouldBe()` or `.shouldBeExactly()` has been subsequently called.
+
+## Strict Shape Enforcement
+Strict enforcement of object shapes be achieved with the `.shouldBeExactly()` function, which will fail objects with extraneous fields:
+```javascript
+// Define the schema.
+let schema = {'foo': shapeOf.string, 'baz': shapeOf.string};
+
+// Valid object shape with an exact shape match
+let obj = {'foo': 'bar', 'baz': 'biz'};
+let passingResult = shapeOf(obj).shouldBeExactly(schema);   // true
+
+// Invalid object shape (contains the extraneous field 'bom', which isn't included in the schema)
+let malformedObj = {'foo': 'bar', 'baz': 'biz', 'bom': 'bim'};
+let failingResult = shapeOf(malformedObj).shouldBeExactly(schema);   // false
+```
+
+## Optional Object Fields
+A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
+```javascript
+let obj = {'foo': 'bar'};
+let schema = {'foo': shapeOf.string, 'baz': shapeOf.optional.number};   // the 'baz' field is optional
+let result = shapeOf(obj).shouldBe(schema);   // true, despite a missing optional 'baz' field
+```
 
 ## Type Validators
 
@@ -64,14 +94,6 @@ result = shapeOf(obj).shouldBe(schema);   // true
 obj = {'foo': 'bar', 'baz': 42};
 schema = shapeOf.objectOf(shapeOf.number);
 result = shapeOf(obj).shouldBe(schema);   // false
-```
-
-## Optional Object Fields
-A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
-```javascript
-let obj = {'foo': 'bar'};
-let schema = {'foo': shapeOf.string, 'baz': shapeOf.optional.number};   // the 'baz' field is optional
-let result = shapeOf(obj).shouldBe(schema);   // true, despite a missing optional 'baz' field
 ```
 
 ### Custom Validators

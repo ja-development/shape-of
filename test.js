@@ -55,9 +55,13 @@ let invalid = (obj, schema) => {
 //
 
 
+// Testing types and exact value matches
 expect(
 	shapeOf({'foo': 'bar'}).shouldBe({'foo': shapeOf.string})
 ).isTruthy();
+expect(
+	shapeOf({'foo': 'bar'}).shouldBe({'foo': 'biz'})
+).isFalsy();
 
 
 // Testing nesting
@@ -205,6 +209,21 @@ expect(errorObjCaught).is(errorObj);
 let fooValidator = (obj) => { if (obj === 'bar') return obj };
 expect(
 	shapeOf({'foo': 'bar'}).shouldBe({'foo': fooValidator})
+).isTruthy();
+
+
+// Testing .shouldBeExactly()
+expect(
+	shapeOf({'foo': 'bar', 'baz': 'biz'}).shouldBeExactly({'foo': shapeOf.string})
+).isFalsy();
+expect(
+	shapeOf({'foo': 'bar', 'baz': 'biz'}).shouldBeExactly({'foo': shapeOf.string, 'baz': 'biz'})
+).isTruthy();
+expect(
+	shapeOf({'foo': 'bar', 'baz': 'biz', 'bom': {'bam': 'bim', 'bem': 'bom'}}).shouldBeExactly({'foo': shapeOf.string, 'baz': 'biz', 'bom': {'bam': shapeOf.string}})
+).isFalsy();
+expect(
+	shapeOf({'foo': 'bar', 'baz': 'biz'}).shouldBeExactly({'foo': 'bar', 'baz': shapeOf.optional.string})
 ).isTruthy();
 
 

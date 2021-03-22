@@ -5,94 +5,25 @@
  * A lightweight schema validator for JSON endpoints.
  * 
  * 
- * shapeOf Primitive Types:
- *   shapeOf.string
- *   shapeOf.array
- *   shapeOf.bool
- *   shapeOf.number
- *   shapeOf.object
- *   shapeOf.null
- *   shapeOf.primitive  (string || bool || number || null)
- *   
- * shapeOf Composite Types:
- *   shapeOf.arrayOf
- *   shapeOf.objectOf
- *   shapeOf.oneOf
- *   shapeOf.oneOfType
- *   
- *   
- * Examples:
- *   shapeOf([1, 2, 3])
- *       .shouldBe(shapeOf.array);
- *   
- *   // true
- *   
- *   
- *   shapeOf({'foo': 'bar', 'baz': []})
- *       .shouldBe({'foo': shapeOf.string, 'baz': shapeOf.array});
- *  
- *   // true
- *   
- *   
- *   shapeOf({'foo': 'bar', 'baz': 'bom'})
- *       .shouldBe(shapeOf.objectOf(shapeOf.string));
- *       
- *   // true
- *   
- *   
- *   shapeOf('Hello world!')
- *       .shouldBe(shapeOf.oneOfType(shapeOf.string, shapeOf.null));
- *       
- *   // true
- *   
- *   
- *   shapeOf('Hello world!')
- *       .shouldBe(shapeOf.null);
- *   
- *   // false
- *   
- *   
- * Any shapeOf type functions can also be preceded with a .optional, which doesn't require keys for objects of a given name:
- *   shapeOf({'foo': 'bar'})
- *       .shouldBe({'foo': shapeOf.string, 'bom': shapeOf.optional.string});
- *       
- *   // true
- *   
- *   
+ * Copyright (c) 2021 Jeff Allen
  * 
- * A failed validation of data shape can also throw an exception if toggled to do so using .throwsOnInvalid:
- *   shapeOf('foo bar')
- *       .throwsOnInvalid
- *       .shouldBe(shapeOf.number);
- *   
- *   // throws a generic exception
- *   
- * Custom exceptions can also be thrown:
- *   shapeOf('foo bar')
- *       .throwsOnInvalid(new Error('Custom error'))
- *       .shouldBe(shapeOf.number);
- *       
- *   // throws the error provided as an argument to .throwsOnInvalid()
- *   
- *   
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  * 
- * Listeners can be used for (in)valid results:
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
  * 
- *   shapeOf({'foo': 'bar'})
- *       .onInvalid((obj) => console.log('Failed validation', obj))
- *       .onValid((obj) => console.log('Passed validation', obj))
- *       .shouldBe({'foo': shapeOf.number});
- *
- *   // results in console log: 'Failed validation', {'foo': 'bar'}
- *   
- *   
- *   shapeOf({'foo': 'bar'})
- *       .onInvalid((obj) => console.log('Failed validation', obj))
- *       .onValid((obj) => console.log('Passed validation', obj))
- *       .shouldBe({'foo': shapeOf.string});
- *
- *   // results in console log: 'Passed validation', {'foo': 'bar'}
- *   
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 let shapeOf = function(obj) {
@@ -103,6 +34,7 @@ let shapeOf = function(obj) {
  * Create an object that returns after using one of the following:
  * 
  *  - shouldBe
+ *  - shouldBeExactly
  *  - shouldNotBe
  *  - throwsOnInvalid
  *  - onValid
@@ -129,14 +61,22 @@ shapeOf._buildActions = (thisObj, obj, options) => {
 
 	if (exclude.indexOf('shouldBe') === -1)
 		rtn.shouldBe = shapeOf._shouldBe.bind(thisObj, { obj, ...options });
+
+	if (exclude.indexOf('shouldBeExactly') === -1)
+		rtn.shouldBeExactly = shapeOf._shouldBe.bind(thisObj, { obj, exact: true, ...options });
+
 	if (exclude.indexOf('shouldNotBe') === -1)
 		rtn.shouldNotBe = ((obj, schema) => !shapeOf._shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
+
 	if (exclude.indexOf('throwsOnInvalid') === -1)
 		rtn.throwsOnInvalid = shapeOf._buildThrowsOnExceptionActions(thisObj, obj, options);
+
 	if (exclude.indexOf('onInvalid') === -1)
 		rtn.onInvalid = shapeOf._onInvalid.bind(thisObj, thisObj, { obj, ...options });
+
 	if (exclude.indexOf('onValid') === -1)
 		rtn.onValid = shapeOf._onValid.bind(thisObj, thisObj, { obj, ...options });
+
 	if (exclude.indexOf('onComplete') === -1)
 		rtn.onComplete = shapeOf._onComplete.bind(thisObj, thisObj, { obj, ...options });
 
@@ -210,7 +150,7 @@ shapeOf._onValid = (thisObj, options, callback) => {
  * 
  * NOTE: If .throwsOnInvalid has been toggled and an invalid evaluation occurs, the onComplete callbacks
  *       don't execute.
- * 
+ *  
  * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
  * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @param      {Function}  callback  The callback to execute after a valid evaluation, or an invalid evaluation without a .throwsOnInvalid toggle
@@ -235,9 +175,10 @@ shapeOf._shouldBe = (options, schema) => {
 	if (typeof schema === 'function') {
 		rtn = typeof schema(obj) !== 'undefined';
 	} else if (typeof schema === 'object') {
-		rtn = typeof shapeOf._object(obj, schema) !== 'undefined';
+		rtn = typeof shapeOf._object(obj, schema, options) !== 'undefined';
 	} else {
-		rtn = typeof schema === typeof obj;
+		// rtn = typeof schema === typeof obj;
+		rtn = schema === obj;
 	}
 	if (options.onInvalid && !rtn) {
 		options.onInvalid.forEach(callback => callback(obj, schema));
@@ -262,11 +203,14 @@ shapeOf._shouldBe = (options, schema) => {
  *
  * @param      {object}   obj     The object in question
  * @param      {object}   schema  The schema described as an object
- * @return     {boolean}  { description_of_the_return_value }
+ * @param      {object}   options  The accumulated options from the shapeOf chain calls
+ * @return     {boolean}  True if object matches schema
  */
-shapeOf._object = (obj, schema) => {
+shapeOf._object = (obj, schema, options) => {
 	if (typeof obj !== 'object')
 		return;
+
+	let exact = options.exact || false;
 
 	let schemaKeys = Object.keys(schema);
 	for (let i = schemaKeys.length - 1; i >= 0; i--) {
@@ -280,8 +224,17 @@ shapeOf._object = (obj, schema) => {
 		}
 		let valInQuestion = obj[schemaKey];
 
-		if (!shapeOf(valInQuestion).shouldBe(expected))
+		if (!shapeOf._shouldBe({...options, obj: valInQuestion}, expected))
 			return;
+	}
+
+	if (exact) {
+		// Exact schema - ensure no extraneous fields are present
+		let objKeys = Object.keys(obj);
+		for (let i = objKeys.length - 1; i >= 0; i--) {
+			if (schemaKeys.indexOf(objKeys[i]) === -1)
+				return;
+		}
 	}
 
 	return true;
