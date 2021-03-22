@@ -12,12 +12,12 @@ A simple example of the `shapeOf()` function uses the `.shouldBe()` function to 
 ```javascript
 // Define a schema that expects an object with a 'foo' field, which is expected to be a string
 let schema = {
-	'foo': shapeOf.string
+  'foo': shapeOf.string
 };
 
 // Object with valid shape
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 
 // Execute validation and store results in passingResult
@@ -32,14 +32,14 @@ Nesting is also supported:
 ```javascript
 // Validate using a schema that defines an object within an object containing a string field with the key 'bar'
 let schema = {
-	'foo': {
-		'bar': shapeOf.string
-	}
+  'foo': {
+    'bar': shapeOf.string
+  }
 };
 let obj = {
-	'foo': {
-		'bar': 'baz'
-	}
+  'foo': {
+    'bar': 'baz'
+  }
 };
 let result = shapeOf(obj).shouldBe(schema);   // true
 ```
@@ -51,22 +51,22 @@ Strict enforcement of object shapes be achieved with the `.shouldBeExactly()` fu
 ```javascript
 // Define the schema
 let schema = {
-	'foo': shapeOf.string,
-	'baz': shapeOf.string
+  'foo': shapeOf.string,
+  'baz': shapeOf.string
 };
 
 // Valid object shape with an exact shape match
 let obj = {
-	'foo': 'bar',
-	'baz': 'biz'
+  'foo': 'bar',
+  'baz': 'biz'
 };
 let passingResult = shapeOf(obj).shouldBeExactly(schema);   // true
 
 // Invalid object shape (contains the extraneous field 'bom', which isn't included in the schema)
 let malformedObj = {
-	'foo': 'bar',
-	'baz': 'biz',
-	'bom': 'bim'
+  'foo': 'bar',
+  'baz': 'biz',
+  'bom': 'bim'
 };
 let failingResult = shapeOf(malformedObj).shouldBeExactly(schema);   // false
 ```
@@ -75,11 +75,11 @@ let failingResult = shapeOf(malformedObj).shouldBeExactly(schema);   // false
 A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
 ```javascript
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 let schema = {
-	'foo': shapeOf.string,
-	'baz': shapeOf.optional.number   // the 'baz' field is optional
+  'foo': shapeOf.string,
+  'baz': shapeOf.optional.number   // the 'baz' field is optional
 };
 let result = shapeOf(obj).shouldBe(schema);   // true, despite a missing optional 'baz' field
 ```
@@ -139,16 +139,16 @@ result = shapeOf(obj).shouldBe(schema);   // false
 
 // Passing shapeOf.objectOf()
 obj = {
-	'foo': 'bar',
-	'baz': 42
+  'foo': 'bar',
+  'baz': 42
 };
 schema = shapeOf.objectOf(shapeOf.string, shapeOf.number);
 result = shapeOf(obj).shouldBe(schema);   // true
 
 // Failing shapeOf.objectOf()
 obj = {
-	'foo': 'bar',
-	'baz': 42
+  'foo': 'bar',
+  'baz': 42
 };
 schema = shapeOf.objectOf(shapeOf.number);
 result = shapeOf(obj).shouldBe(schema);   // false
@@ -164,10 +164,10 @@ let fooValidator = (obj) => { if (obj === 'bar') return obj };
 
 // Test an object with a field that'll pass using fooValidator
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 let schema = {
-	'foo': fooValidator   // the field 'foo' must pass fooValidator, which requires the value to be 'bar'
+  'foo': fooValidator   // the field 'foo' must pass fooValidator, which requires the value to be 'bar'
 };
 let result = shapeOf(obj).shouldBe(schema);   // true
 ```
@@ -198,16 +198,16 @@ let result = shapeOf(obj).throwsOnInvalid.shouldBe(schema);   // throws an excep
 Custom exceptions can also be thrown by calling `.throwsOnInvalid()` and providing the error object as an argument:
 ```javascript
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 let schema = shapeOf.objectOf(shapeOf.number);
 let customException = new Error('Custom exception');
 
 try {
-	shapeOf(obj).throwsOnInvalid(customException).shouldBe(schema);
+  shapeOf(obj).throwsOnInvalid(customException).shouldBe(schema);
 } catch (exception) {
-	// this executes with exception === customException
-	console.log('An exception was thrown during a shapeOf() validation', exception);
+  // this executes with exception === customException
+  console.log('An exception was thrown during a shapeOf() validation', exception);
 }
 ```
 
@@ -224,7 +224,7 @@ Example of handling a passed validation by adding the `.onValid()` chain call af
 ```javascript
 let validHandler = (obj) => console.log('Passed validation', obj);
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 let schema = shapeOf.object;
 let result = shapeOf(obj).onValid(validHandler).shouldBe(schema);   // true, and console output: Passed validation  {'foo': 'bar'}
@@ -234,7 +234,7 @@ Example of handling a failed validation by adding the `.onInvalid()` chain call 
 ```javascript
 let invalidHandler = (obj) => console.log('Failed validation', obj);
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 let schema = shapeOf.array;
 let result = shapeOf(obj).onInvalid(invalidHandler).shouldBe(schema);   // false, and console output: Failed validation  {'foo': 'bar'}
@@ -244,7 +244,7 @@ Example of handling a completed validation by adding the `.onComplete()` chain c
 ```javascript
 let completeHandler = (obj) => console.log('Validation complete', obj);
 let obj = {
-	'foo': 'bar'
+  'foo': 'bar'
 };
 let schema = shapeOf.object;
 let result = shapeOf(obj).onComplete(completeHandler).shouldBe(schema);   // true, and console output: Validation complete  {'foo': 'bar'}
