@@ -222,6 +222,12 @@ let fooValidator = (obj) => { if (obj === 'bar') return obj };
 expect(
 	shapeOf({'foo': 'bar'}).shouldBe({'foo': fooValidator})
 ).isTruthy();
+expect(
+	shapeOf(['bar', 'bar', 'bar']).shouldBe(shapeOf.arrayOf(fooValidator))
+).isTruthy();
+expect(
+	shapeOf(['foo', 'bar', 'bar']).shouldBe(shapeOf.arrayOf(fooValidator))
+).isFalsy();
 
 
 // Testing .shouldBeExactly()
@@ -259,10 +265,10 @@ expect(
 	shapeOf(42).shouldBeExactly(shapeOf.optional.number.min(-1))
 ).isTruthy();
 expect(
-	shapeOf(-2).shouldBeExactly(shapeOf.optional.number.min(-2))
+	shapeOf(-2).shouldBeExactly(shapeOf.optional.number.greaterThanOrEqualTo(-2))
 ).isTruthy();
 expect(
-	shapeOf(42).shouldBeExactly(shapeOf.optional.number.max(42))
+	shapeOf(42).shouldBeExactly(shapeOf.optional.number.lessThanOrEqualTo(42))
 ).isTruthy();
 expect(
 	shapeOf(42).shouldBeExactly(shapeOf.number.max(-1))
@@ -308,6 +314,21 @@ expect(
 expect(
 	shapeOf({'foo': 4.2}).shouldBeExactly({'foo': shapeOf.integer, 'bar': shapeOf.optional.integer.max(42)})
 ).isFalsy();
+
+// Testing string lengths
+expect(
+	shapeOf('test').shouldBeExactly(shapeOf.string.size(4))
+).isTruthy();
+expect(
+	shapeOf('test').shouldBeExactly(shapeOf.string.size(1, 4))
+).isTruthy();
+expect(
+	shapeOf('test').shouldBeExactly(shapeOf.string.ofSize(5, 4))
+).isTruthy();
+expect(
+	shapeOf('test').shouldBeExactly(shapeOf.string.ofSize(5, 10))
+).isFalsy();
+
 
 // 
 // Results

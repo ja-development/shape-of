@@ -1,5 +1,5 @@
 # shapeOf
-A lightweight schema validator for JSON endpoints.
+A lightweight schema validator for JSON endpoints and Plain Old JavaScript Objects (POJOs).
 
 ## Installation
 
@@ -11,10 +11,16 @@ npm install shape-of
 A simple example of the `shapeOf()` function uses the `.shouldBe()` function to evaluate an object against a schema, which either returns a true or false value:
 ```javascript
 // Define a schema that expects an object with a 'foo' field, which is expected to be a string
-let schema = {'foo': shapeOf.string};
+let schema = {
+	'foo': shapeOf.string
+};
 
-// Valid object shape
-let obj = {'foo': 'bar'};
+// Object with valid shape
+let obj = {
+	'foo': 'bar'
+};
+
+// Execute validation and store results in passingResult
 let passingResult = shapeOf(obj).shouldBe(schema);   // true
 
 // Invalid object shape ('foo' field is a number)
@@ -24,8 +30,17 @@ let failingResult = shapeOf(malformedObj).shouldBe(schema);   // false
 
 Nesting is also supported:
 ```javascript
-let obj =    {'foo': {'bar': 'baz'}};
-let schema = {'foo': {'bar': shapeOf.string}};
+// Validate using a schema that defines an object within an object containing a string field with the key 'bar'
+let schema = {
+	'foo': {
+		'bar': shapeOf.string
+	}
+};
+let obj = {
+	'foo': {
+		'bar': 'baz'
+	}
+};
 let result = shapeOf(obj).shouldBe(schema);   // true
 ```
 
@@ -35,22 +50,37 @@ A call to `shapeOf()` will only perform validation once `.shouldBe()` or `.shoul
 Strict enforcement of object shapes be achieved with the `.shouldBeExactly()` function, which will fail objects with extraneous fields:
 ```javascript
 // Define the schema
-let schema = {'foo': shapeOf.string, 'baz': shapeOf.string};
+let schema = {
+	'foo': shapeOf.string,
+	'baz': shapeOf.string
+};
 
 // Valid object shape with an exact shape match
-let obj = {'foo': 'bar', 'baz': 'biz'};
+let obj = {
+	'foo': 'bar',
+	'baz': 'biz'
+};
 let passingResult = shapeOf(obj).shouldBeExactly(schema);   // true
 
 // Invalid object shape (contains the extraneous field 'bom', which isn't included in the schema)
-let malformedObj = {'foo': 'bar', 'baz': 'biz', 'bom': 'bim'};
+let malformedObj = {
+	'foo': 'bar',
+	'baz': 'biz',
+	'bom': 'bim'
+};
 let failingResult = shapeOf(malformedObj).shouldBeExactly(schema);   // false
 ```
 
 ## Optional Object Fields
 A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
 ```javascript
-let obj = {'foo': 'bar'};
-let schema = {'foo': shapeOf.string, 'baz': shapeOf.optional.number};   // the 'baz' field is optional
+let obj = {
+	'foo': 'bar'
+};
+let schema = {
+	'foo': shapeOf.string,
+	'baz': shapeOf.optional.number   // the 'baz' field is optional
+};
 let result = shapeOf(obj).shouldBe(schema);   // true, despite a missing optional 'baz' field
 ```
 
@@ -69,17 +99,22 @@ shapeOf supports validating the following primitive data types by default:
 | Null      | `shapeOf.null`    |
 | Primitive | `shapeOf.primitive` |
 
-*NOTE: The primitive data type includes strings, booleans, numbers, and null.*
+*NOTE: The primitive data type includes strings, booleans, numbers, integers, and null.*
 
-#### Primitive Number Type: Ranges
-The `shapeOf.number` validator also supports ranges, minimums, and maximums:
+#### Primitive Number Type: Ranges, Minimums, and Maximums
+The `shapeOf.number` and `shapeOf.integer` validators also support ranges, minimums, and maximums:
 | Function | Description |
 | -------- | ----------- |
-| `shapeOf.number.range(min, max)` | Validates if the number is between or at the `min` and `max` values |
-| `shapeOf.number.min(min)` | Validates if the number is above or at the `min` value |
-| `shapeOf.number.max(max)` | Validates if the number is above or at the `max` value |
+| `shapeOf.number.range(min, max)`<br>`shapeOf.integer.range(min, max)`| Validates if the number is between or at the `min` and `max` values |
+| `shapeOf.number.min(min)`<br>`shapeOf.integer.min(min)`<br>`shapeOf.number.greaterThanOrEqualTo(min)`<br>`shapeOf.integer.greaterThanOrEqualTo(min)` | Validates if the number is above or at the `min` value |
+| `shapeOf.number.max(max)`<br>`shapeOf.integer.max(max)`<br>`shapeOf.number.lessThanOrEqualTo(max)`<br>`shapeOf.integer.lessThanOrEqualTo(max)` | Validates if the number is above or at the `max` value |
 
-*NOTE: The number range functions are applicable to the integer primitive type as well.*
+#### Primitive String Type: Length
+The `shapeOf.string` validator also supports minimum, maximum, and exact lengths:
+| Function | Description |
+| -------- | ----------- |
+| `shapeOf.string.size(exact)`<br>`shapeOf.string.ofSize(exact)` | Validates if the string has the `exact` character count |
+| `shapeOf.string.size(min, max)`<br>`shapeOf.string.ofSize(min, max)` | Validates if the string has a character count between `min` and `max` |
 
 ### Composite/Strict Type Validators
 In addition to primitive types, composites of primitive types are supported as well:
@@ -103,12 +138,18 @@ schema = shapeOf.arrayOf(shapeOf.string);
 result = shapeOf(obj).shouldBe(schema);   // false
 
 // Passing shapeOf.objectOf()
-obj = {'foo': 'bar', 'baz': 42};
+obj = {
+	'foo': 'bar',
+	'baz': 42
+};
 schema = shapeOf.objectOf(shapeOf.string, shapeOf.number);
 result = shapeOf(obj).shouldBe(schema);   // true
 
 // Failing shapeOf.objectOf()
-obj = {'foo': 'bar', 'baz': 42};
+obj = {
+	'foo': 'bar',
+	'baz': 42
+};
 schema = shapeOf.objectOf(shapeOf.number);
 result = shapeOf(obj).shouldBe(schema);   // false
 ```
@@ -118,10 +159,32 @@ A developer can introduce a custom validator into the schema by writing a valida
 
 A custom validator example:
 ```javascript
+// Create a simple validator that only passes the string 'bar'
 let fooValidator = (obj) => { if (obj === 'bar') return obj };
-let obj = {'foo': 'bar'};
-let schema = {'foo': fooValidator};
+
+// Test an object with a field that'll pass using fooValidator
+let obj = {
+	'foo': 'bar'
+};
+let schema = {
+	'foo': fooValidator   // the field 'foo' must pass fooValidator, which requires the value to be 'bar'
+};
 let result = shapeOf(obj).shouldBe(schema);   // true
+```
+
+Composite types can also use custom validators for evaluating elements:
+```javascript
+// Create a simple validator that only passes the string 'bar'
+let fooValidator = (obj) => { if (obj === 'bar') return obj };
+
+// Test an array of 'bar' strings against a schema validating array elements using the fooValidator
+let obj = ['bar', 'bar', 'bar'];
+let schema = shapeOf.arrayOf(fooValidator);
+let result = shapeOf(obj).shouldBe(schema);   // true
+
+// Test using same schema but against a malformed object
+let failingObj = ['foo', 'bar', 'bar'];   // first element will fail, causing .shouldBe() to return false
+result = shapeOf(failingObj).shouldBe(failingObj);   // false
 ```
 
 ## Throwing Exceptions
@@ -134,7 +197,9 @@ let result = shapeOf(obj).throwsOnInvalid.shouldBe(schema);   // throws an excep
 
 Custom exceptions can also be thrown by calling `.throwsOnInvalid()` and providing the error object as an argument:
 ```javascript
-let obj = {'foo': 'bar'};
+let obj = {
+	'foo': 'bar'
+};
 let schema = shapeOf.objectOf(shapeOf.number);
 let customException = new Error('Custom exception');
 
@@ -158,7 +223,9 @@ shapeOf supports event listeners for when validation fails, passes, and/or compl
 Example of handling a passed validation by adding the `.onValid()` chain call after a `shapeOf()` call:
 ```javascript
 let validHandler = (obj) => console.log('Passed validation', obj);
-let obj = {'foo': 'bar'};
+let obj = {
+	'foo': 'bar'
+};
 let schema = shapeOf.object;
 let result = shapeOf(obj).onValid(validHandler).shouldBe(schema);   // true, and console output: Passed validation  {'foo': 'bar'}
 ```
@@ -166,7 +233,9 @@ let result = shapeOf(obj).onValid(validHandler).shouldBe(schema);   // true, and
 Example of handling a failed validation by adding the `.onInvalid()` chain call after a `shapeOf()` call:
 ```javascript
 let invalidHandler = (obj) => console.log('Failed validation', obj);
-let obj = {'foo': 'bar'};
+let obj = {
+	'foo': 'bar'
+};
 let schema = shapeOf.array;
 let result = shapeOf(obj).onInvalid(invalidHandler).shouldBe(schema);   // false, and console output: Failed validation  {'foo': 'bar'}
 ```
@@ -174,7 +243,9 @@ let result = shapeOf(obj).onInvalid(invalidHandler).shouldBe(schema);   // false
 Example of handling a completed validation by adding the `.onComplete()` chain call after a `shapeOf()` call:
 ```javascript
 let completeHandler = (obj) => console.log('Validation complete', obj);
-let obj = {'foo': 'bar'};
+let obj = {
+	'foo': 'bar'
+};
 let schema = shapeOf.object;
 let result = shapeOf(obj).onComplete(completeHandler).shouldBe(schema);   // true, and console output: Validation complete  {'foo': 'bar'}
 ```

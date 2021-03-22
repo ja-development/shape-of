@@ -245,43 +245,6 @@ let _object = (obj, schema, options) => {
 };
 
 /**
- * Validator for string types.
- *
- * @param      {object}  obj     The object in question
- * @return     {object}  Returns the object if valid, undefined otherwise
- */
-shapeOf.string = (obj) => {
-	if (typeof obj === 'string')
-		return obj;
-};
-shapeOf.string._validator = true;
-
-/**
- * Validator for array types.
- *
- * @param      {object}  obj     The object in question
- * @return     {object}  Returns the object if valid, undefined otherwise
- */
-shapeOf.array = (obj) => {
-	if (Array.isArray(obj))
-		return obj;
-};
-shapeOf.array._validator = true;
-
-/**
- * Validator for boolean types.
- *
- * @param      {object}  obj     The object in question
- * @return     {object}  Returns the object if valid, undefined otherwise
- */
-shapeOf.bool = (obj) => {
-	if (typeof obj === 'boolean')
-		return obj;
-};
-shapeOf.bool._validator = true;
-shapeOf.boolean = shapeOf.bool;
-
-/**
  * Validator for number types.
  *
  * @param      {object}  obj     The object in question
@@ -337,6 +300,7 @@ shapeOf.number.min = function(min) {
 	rtn._optional = this._optional;
 	return rtn;
 };
+shapeOf.number.greaterThanOrEqualTo = shapeOf.number.min;
 
 /**
  * Validator function used in validator generation from the shapeOf.number.min() function.
@@ -364,6 +328,7 @@ shapeOf.number.max = function(max) {
 	rtn._optional = this._optional;
 	return rtn;
 };
+shapeOf.number.lessThanOrEqualTo = shapeOf.number.max;
 
 /**
  * Validator function used in validator generation from the shapeOf.number.max() function.
@@ -436,6 +401,7 @@ shapeOf.integer.min = function(min) {
 	rtn._optional = this._optional;
 	return rtn;
 };
+shapeOf.integer.greaterThanOrEqualTo = shapeOf.integer.min;
 
 /**
  * Validator function used in validator generation from the shapeOf.integer.min() function.
@@ -463,6 +429,7 @@ shapeOf.integer.max = function(max) {
 	rtn._optional = this._optional;
 	return rtn;
 };
+shapeOf.integer.lessThanOrEqualTo = shapeOf.integer.max;
 
 /**
  * Validator function used in validator generation from the shapeOf.integer.max() function.
@@ -477,6 +444,98 @@ let _integer_max = (max, obj) => {
 			return obj;
 	}
 };
+
+/**
+ * Validator for string types.
+ *
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+shapeOf.string = (obj) => {
+	if (typeof obj === 'string')
+		return obj;
+};
+shapeOf.string._validator = true;
+
+/**
+ * Validator generator for string types of a given length or range of length.
+ *
+ * @param      {number}    minOrExact  The minimum or exact character count
+ * @param      {number}    max         The maximum character count
+ * @return     {Function}    Returns a validator function specific to the string length
+ */
+shapeOf.string.size = function(minOrExact, max) {
+	if (typeof max === 'undefined') {
+		// Exact length
+		let rtn = _string_exactLength.bind(null, minOrExact);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	} else {
+		// Ranging length
+		let nmin = Math.min(minOrExact, max);
+		let nmax = Math.max(minOrExact, max);
+		let rtn = _string_rangeLength.bind(null, nmin, nmax);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	}
+};
+shapeOf.string.ofSize = shapeOf.string.size;
+
+/**
+ * Validator function used in validator generation from shapeOf.string.size()/shapeOf.string.ofSize() function.
+ *
+ * @param      {number}  exact   The exact character count
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+_string_exactLength = (exact, obj) => {
+	if (typeof obj === 'string') {
+		if (obj.length === exact)
+			return obj;
+	}
+};
+
+/**
+ * Validator function used in validator generation from shapeOf.string.size()/shapeOf.string.sizeOf() function.
+ *
+ * @param      {number}  min     The minimum character count
+ * @param      {number}  max     The maximum character count
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+_string_rangeLength = (min, max, obj) => {
+	if (typeof obj === 'string') {
+		if (obj.length >= min && obj.length <= max)
+			return obj;
+	}
+};
+
+/**
+ * Validator for array types.
+ *
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+shapeOf.array = (obj) => {
+	if (Array.isArray(obj))
+		return obj;
+};
+shapeOf.array._validator = true;
+
+/**
+ * Validator for boolean types.
+ *
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+shapeOf.bool = (obj) => {
+	if (typeof obj === 'boolean')
+		return obj;
+};
+shapeOf.bool._validator = true;
+shapeOf.boolean = shapeOf.bool;
 
 /**
  * Validator for object types. Null isn't considered an object and instead passes with shapeOf.null.
