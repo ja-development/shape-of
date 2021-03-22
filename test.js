@@ -340,6 +340,29 @@ expect(
 	shapeOf('Hello world!').shouldBeExactly(shapeOf.string.pattern(/^he[l]{2,2}o ....d!$/i, 'g'))
 ).isFalsy();
 
+// Testing array lengths
+expect(
+	shapeOf([1,2,3]).shouldBeExactly(shapeOf.array.ofSize(3))
+).isTruthy();
+expect(
+	shapeOf([1,2,3]).shouldBeExactly(shapeOf.array.ofSize(4))
+).isFalsy();
+expect(
+	shapeOf([1,2,3]).shouldBeExactly(shapeOf.array.ofSize(1, 4))
+).isTruthy();
+expect(
+	shapeOf([1,2,3]).shouldBeExactly(shapeOf.array.ofSize(4, 1))
+).isTruthy();
+expect(
+	shapeOf([1,2,3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number).ofSize(4, 1))
+).isTruthy();
+expect(
+	shapeOf([1,'a',3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number).ofSize(4, 1))
+).isFalsy();
+expect(
+	shapeOf([1,2,3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number).ofSize(3))
+).isTruthy();
+
 
 // 
 // Results

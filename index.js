@@ -560,6 +560,61 @@ shapeOf.array = (obj) => {
 shapeOf.array._validator = true;
 
 /**
+ * Validator generator for array types of a given length or range of length.
+ *
+ * @param      {number}    minOrExact  The minimum or exact element count
+ * @param      {number}    max         The maximum element count
+ * @return     {Function}    Returns a validator function specific to the array length
+ */
+shapeOf.array.size = function(minOrExact, max) {
+	if (typeof max === 'undefined') {
+		// Exact length
+		let rtn = _array_exactLength.bind(null, minOrExact);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	} else {
+		// Ranging length
+		let nmin = Math.min(minOrExact, max);
+		let nmax = Math.max(minOrExact, max);
+		let rtn = _array_rangeLength.bind(null, nmin, nmax);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	}
+};
+shapeOf.array.ofSize = shapeOf.array.size;
+
+/**
+ * Validator function used in validator generation from shapeOf.array.size()/shapeOf.array.ofSize() function.
+ *
+ * @param      {number}  exact   The exact element count
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _array_exactLength = (exact, obj) => {
+	if (Array.isArray(obj)) {
+		if (obj.length === exact)
+			return obj;
+	}
+};
+
+/**
+ * Validator function used in validator generation from shapeOf.array.size()/shapeOf.array.sizeOf() function.
+ *
+ * @param      {number}  min     The minimum element count
+ * @param      {number}  max     The maximum element count
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _array_rangeLength = (min, max, obj) => {
+	if (Array.isArray(obj)) {
+		if (obj.length >= min && obj.length <= max)
+			return obj;
+	}
+};
+
+/**
  * Validator for boolean types.
  *
  * @param      {object}  obj     The object in question
@@ -619,7 +674,15 @@ shapeOf.primitive._validator = true;
  */
 shapeOf.arrayOf = (types, ...args) => {
 	types = _transformToArray(types, args);
-	return _arrayOf.bind(null, types);
+	
+	let rtn = _arrayOf.bind(null, types);         // Base validator, .arrayOf()
+
+	rtn.size = _arrayOf_size.bind(null, types);   // Extended validator, .arrayOf().size()/.arrayOf().ofSize()
+	rtn.size._validator = true;
+	rtn.size._optional = this._optional;
+	rtn.ofSize = rtn.size;
+
+	return rtn;
 };
 shapeOf.arrayOf._validator = true;
 
@@ -630,11 +693,24 @@ shapeOf.arrayOf._validator = true;
  * @param      {object}  obj     The object in question
  * @return     {object}  Returns the object if is valid, otherwise undefined
  */
-let _arrayOf = (types, obj) => {
+let _arrayOf = function (types, obj) {
 	if (!Array.isArray(types))
 		types = [types];
-	if (!Array.isArray(obj))
+	if (!_arrayOf_general(types, obj))
 		return;
+	return obj;
+};
+
+/**
+ * Validates an .arrayOf() call. Used by .arrayOf() directly and any extended .arrayOf() validators.
+ *
+ * @param      {Array}   types   The validators to use with the array elements
+ * @param      {object}   obj     The object in question
+ * @return     {boolean}  True if valid, False otherwise
+ */
+let _arrayOf_general = (types, obj) => {
+	if (!Array.isArray(obj))
+		return false;
 	for (let j = obj.length - 1; j >= 0; j--) {
 		let validShape = false;
 		for (let i = types.length - 1; i >= 0; i--) {
@@ -643,10 +719,68 @@ let _arrayOf = (types, obj) => {
 				break;
 		}
 		if (!validShape)
-			return;
+			return false;
 	}
-	return obj;
+	return true;
 };
+
+/**
+ * Validator generator for array types of a given length or range of length.
+ *
+ * @param      {Array}     types   The validators to use with the array elements
+ * @param      {number}    minOrExact  The minimum or exact element count
+ * @param      {number}    max         The maximum element count
+ * @return     {Function}    Returns a validator function specific to the array length
+ */
+let _arrayOf_size = function (types, minOrExact, max) {
+	if (typeof max === 'undefined') {
+		// Exact length
+		let rtn = _arrayOf_exactLength.bind(null, types, minOrExact);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	} else {
+		// Ranging length
+		let nmin = Math.min(minOrExact, max);
+		let nmax = Math.max(minOrExact, max);
+		let rtn = _arrayOf_rangeLength.bind(null, types, nmin, nmax);
+		rtn._validator = true;
+		rtn._optional = this._optional;
+		return rtn;
+	}
+};
+
+/**
+ * Validator function used in validator generation from shapeOf.array.size()/shapeOf.array.ofSize() function.
+ *
+ * @param      {Array}   types   The validators to use with the array elements
+ * @param      {number}  exact   The exact element count
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _arrayOf_exactLength = (types, exact, obj) => {
+	if (_arrayOf_general(types, obj)) {
+		if (obj.length === exact)
+			return obj;
+	}
+};
+
+/**
+ * Validator function used in validator generation from shapeOf.array.size()/shapeOf.array.sizeOf() function.
+ *
+ * @param      {Array}   types   The validators to use with the array elements
+ * @param      {number}  min     The minimum element count
+ * @param      {number}  max     The maximum element count
+ * @param      {object}  obj     The object in question
+ * @return     {object}  Returns the object if valid, undefined otherwise
+ */
+let _arrayOf_rangeLength = (types, min, max, obj) => {
+	if (_arrayOf_general(types, obj)) {
+		if (obj.length >= min && obj.length <= max)
+			return obj;
+	}
+};
+
 
 /**
  * Validator for an object whose values are of one or more types. Can accept variadic arguments, or a single array containing validators.

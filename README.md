@@ -132,6 +132,13 @@ The `shapeOf.string` validator also supports regular expressions:
 | `shapeOf.string.pattern(regex)` | Validates if the string matches the given pattern `regex`, which can be either a string or a RegExp object |
 | `shapeOf.string.pattern(regex, flags)` | Validates if the string matches the given pattern `regex` using `flags`, which can be either a string or a RegExp object |
 
+#### Primitive Array Type: Size
+The `shapeOf.array` validator also supports array sizes, which can be an exact element count or within a range of element counts:
+| Validator Function | Description |
+| ------------------ | ----------- |
+| `shapeOf.array.size(exact)`<br>`shapeOf.array.ofSize(exact)` | Validates if the array has the `exact` element count |
+| `shapeOf.array.size(min, max)`<br>`shapeOf.array.ofSize(min, max)` | Validates if the array has an element count between `min` and `max` |
+
 
 ### Composite/Strict Type Validators
 In addition to primitive types, composites of primitive types are supported as well:
@@ -171,8 +178,16 @@ schema = shapeOf.objectOf(shapeOf.number);
 result = shapeOf(obj).shouldBe(schema);   // false
 ```
 
+#### Composite Array Type: Size
+The `shapeOf.arrayOf()` validator also supports array sizes, which can be an exact element count or within a range of element counts:
+| Validator Function | Description |
+| ------------------ | ----------- |
+| `shapeOf.arrayOf().size(exact)`<br>`shapeOf.arrayOf().ofSize(exact)` | Validates if the array has the `exact` element count |
+| `shapeOf.arrayOf().size(min, max)`<br>`shapeOf.arrayOf().ofSize(min, max)` | Validates if the array has an element count between `min` and `max` |
+
+
 ### Custom Validators
-A developer can introduce a custom validator into the schema by writing a validator function. The validator function should accept a sole argument representing the object in question and returns either the object itself upon being valid, or undefined if invalid.
+A developer can introduce a custom validator into the schema by writing a validator function. The validator function should accept a sole argument representing the object in question and returns either some sort of object upon being valid, or undefined if invalid.
 
 A custom validator example:
 ```javascript
