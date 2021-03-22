@@ -93,6 +93,20 @@ let schema = shapeOf.arrayOf(shapeOf.string);
 let result = shapeOf(obj).throwsOnInvalid.shouldBe(schema);   // throws an exception
 ```
 
+Custom exceptions can also be thrown by calling `.throwsOnInvalid()` and providing the error object as an argument:
+```javascript
+let obj = {'foo': 'bar'};
+let schema = shapeOf.objectOf(shapeOf.number);
+let customException = new Error('Custom exception');
+
+try {
+	shapeOf(obj).throwsOnInvalid(customException).shouldBe(schema);
+} catch (exception) {
+	// this executes with exception === customException
+	console.log('An exception was thrown during a shapeOf() validation', exception);
+}
+```
+
 ## Validation Event Listeners
 shapeOf supports event listeners for when validation fails, passes, and/or completes:
 | Function Name | Description | Listener Parameters |

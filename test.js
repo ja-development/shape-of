@@ -40,23 +40,27 @@ let expect = (expr) => {
 	};
 };
 
-// Tests.
-expect(
-	shapeOf('').shouldBe(shapeOf.string)
-).isTruthy();
+// Setup shared callbacks and objects.
+let callbackVal;
+let valid = (obj, schema) => {
+	callbackVal = true;
+};
+let invalid = (obj, schema) => {
+	callbackVal = false;
+};
 
-expect(
-	shapeOf('').shouldBe(shapeOf.object)
-).isFalsy();
 
-expect(
-	shapeOf([]).shouldBe(shapeOf.array)
-).isTruthy();
+//
+// Tests
+//
+
 
 expect(
 	shapeOf({'foo': 'bar'}).shouldBe({'foo': shapeOf.string})
 ).isTruthy();
 
+
+// Testing nesting
 expect(
 	shapeOf({'foo': {'bar': 'baz'}}).shouldBe({'foo': {'bar': shapeOf.string}})
 ).isTruthy();
@@ -65,28 +69,20 @@ expect(
 	shapeOf({'foo': 'bar'}).shouldBe({'foo': {'bar': shapeOf.string}})
 ).isFalsy();
 
-expect(
-	shapeOf('Test').shouldBe(shapeOf.oneOf(['Test', 'This']))
-).isTruthy();
 
-expect(
-	shapeOf('Test').shouldBe(shapeOf.oneOf('Test', 'This'))
-).isTruthy();
-
-expect(
-	shapeOf({'foo': {'bar': 'baz'}}).shouldBe({'foo': {'bar': shapeOf.oneOf(['biz', 'bom', 'baz'])}})
-).isTruthy();
-
-expect(
-	shapeOf({'foo': 'baz'}).shouldBe({'foo': {'bar': shapeOf.oneOf(['biz', 'bom', 'baz'])}})
-).isFalsy();
-
+// Testing .oneOfType()
 expect(
 	shapeOf(null).shouldBe(shapeOf.oneOfType([shapeOf.string, shapeOf.array]))
 ).isFalsy();
 
 expect(
 	shapeOf(null).shouldBe(shapeOf.oneOfType([shapeOf.string, shapeOf.null]))
+).isTruthy();
+
+
+// Testing arrays
+expect(
+	shapeOf([]).shouldBe(shapeOf.array)
 ).isTruthy();
 
 expect(
@@ -105,6 +101,8 @@ expect(
 	shapeOf([1,'a',3]).shouldBe(shapeOf.arrayOf(shapeOf.oneOfType([shapeOf.number, shapeOf.string])))
 ).isTruthy();
 
+
+// Testing objects
 expect(
 	shapeOf([1,2,3]).shouldBe(shapeOf.objectOf(shapeOf.number))
 ).isTruthy();
@@ -117,9 +115,37 @@ expect(
 	shapeOf({foo: 'a', bar: 2, baz: 3}).shouldBe(shapeOf.objectOf(shapeOf.number))
 ).isFalsy();
 
+
+// Testing enumerations
+expect(
+	shapeOf('Test').shouldBe(shapeOf.oneOf(['Test', 'This']))
+).isTruthy();
+
+expect(
+	shapeOf('Test').shouldBe(shapeOf.oneOf('Test', 'This'))
+).isTruthy();
+
+expect(
+	shapeOf({'foo': {'bar': 'baz'}}).shouldBe({'foo': {'bar': shapeOf.oneOf(['biz', 'bom', 'baz'])}})
+).isTruthy();
+
+expect(
+	shapeOf({'foo': 'baz'}).shouldBe({'foo': {'bar': shapeOf.oneOf(['biz', 'bom', 'baz'])}})
+).isFalsy();
+
+
+// Testing primitives
 expect(
 	shapeOf(null).shouldBe(shapeOf.primitive)
 ).isTruthy();
+
+expect(
+	shapeOf('').shouldBe(shapeOf.string)
+).isTruthy();
+
+expect(
+	shapeOf('').shouldBe(shapeOf.object)
+).isFalsy();
 
 expect(
 	shapeOf([]).shouldBe(shapeOf.primitive)
@@ -129,10 +155,26 @@ expect(
 	shapeOf({}).shouldBe(shapeOf.primitive)
 ).isFalsy();
 
+
+// Testing optional fields
 expect(
 	shapeOf({foo: 'a', bar: 2, baz: 3}).shouldBe({foo: shapeOf.string, bar: shapeOf.number, bom: shapeOf.optional.primitive})
 ).isTruthy();
 
+expect(
+	shapeOf({'foo': 'bar'}).shouldBe({'foo': shapeOf.optional.number})
+).isFalsy();
+
+
+// Testing callbacks for .onValid()/.onInvalid()
+let result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.number));
+expect(callbackVal).isTruthy();
+
+result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.string));
+expect(callbackVal).isFalsy();
+
+
+// Testing .throwsOnInvalid/.throwsOnInvalid()
 let caught = false;
 try {
 	shapeOf('foo').throwsOnInvalid.shouldBe(shapeOf.null);
@@ -141,38 +183,36 @@ try {
 }
 expect(caught).isTruthy();
 
-let callbackVal;
-let valid = (obj, schema) => {
-	callbackVal = true;
-};
-let invalid = (obj, schema) => {
-	callbackVal = false;
-};
-let result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.number));
-expect(callbackVal).isTruthy();
-
-result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.string));
-expect(callbackVal).isFalsy();
-
 try {
 	result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).throwsOnInvalid.shouldBe(shapeOf.arrayOf(shapeOf.string));
 } catch {
 	result = 123;
 }
 expect(result).is(123);
-expect(callbackVal).is(false);
+expect(callbackVal).is(false); // both .onInvalid() callback and the catch to .throwsOnInvalid block should execute
 
-expect(
-	shapeOf({'foo': 'bar'}).shouldBe({'foo': shapeOf.optional.number})
-).isFalsy();
+let errorObj = new Error('Test error');
+let errorObjCaught;
+try {
+	result = shapeOf([1,2,3]).throwsOnInvalid(errorObj).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.string));
+} catch (error) {
+	errorObjCaught = error;
+}
+expect(errorObjCaught).is(errorObj);
 
+
+// Testing custom validators
 let fooValidator = (obj) => { if (obj === 'bar') return obj };
 expect(
 	shapeOf({'foo': 'bar'}).shouldBe({'foo': fooValidator})
 ).isTruthy();
 
 
-// Results.
+// 
+// Results
+// 
+ 
+ 
 console.log(`Results: ${passed} of ${(passed + failed)} passed.`);
 
 if (failed > 0)

@@ -65,7 +65,14 @@
  *       .throwsOnInvalid
  *       .shouldBe(shapeOf.number);
  *   
- *   // throws an exception
+ *   // throws a generic exception
+ *   
+ * Custom exceptions can also be thrown:
+ *   shapeOf('foo bar')
+ *       .throwsOnInvalid(new Error('Custom error'))
+ *       .shouldBe(shapeOf.number);
+ *       
+ *   // throws the error provided as an argument to .throwsOnInvalid()
  *   
  *   
  * 
@@ -105,13 +112,18 @@ let shapeOf = function(obj) {
  *
  * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
  * @param      {object}  obj      The object who's schema is in question
- * @param      {options} options  The accumulated options from the shapeOf chain calls
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @return     {object}  An object for making chained calls
  */
 shapeOf._buildActions = (thisObj, obj, options) => {
 	options = options || {};
 	let exclude = options.exclude || [];
-	let rtn = {}
+	let rtn = {};
+
+	if (options.baseObject) {
+		rtn = options.baseObject;
+		delete options.baseObject;
+	}
 
 	delete options.exclude;
 
@@ -120,7 +132,7 @@ shapeOf._buildActions = (thisObj, obj, options) => {
 	if (exclude.indexOf('shouldNotBe') === -1)
 		rtn.shouldNotBe = ((obj, schema) => !shapeOf._shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
 	if (exclude.indexOf('throwsOnInvalid') === -1)
-		rtn.throwsOnInvalid = shapeOf._buildActions(thisObj, obj, {exclude: ['throwsOnInvalid'], throwOnInvalid: true, ...options});
+		rtn.throwsOnInvalid = shapeOf._buildThrowsOnExceptionActions(thisObj, obj, options);
 	if (exclude.indexOf('onInvalid') === -1)
 		rtn.onInvalid = shapeOf._onInvalid.bind(thisObj, thisObj, { obj, ...options });
 	if (exclude.indexOf('onValid') === -1)
@@ -132,10 +144,44 @@ shapeOf._buildActions = (thisObj, obj, options) => {
 };
 
 /**
+ * Builds actions specifically for the .throwsOnException/.throwsOnException() fields.
+ *
+ * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
+ * @param      {object}  options  The options
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
+ * @return     {Function}  The .throwsOnException actions.
+ */
+shapeOf._buildThrowsOnExceptionActions = (thisObj, obj, options) => {
+	let extOptions = {
+		obj,
+		exclude: ['throwsOnInvalid'],
+		throwOnInvalid: true,
+		...options
+	};
+	extOptions.baseObject = shapeOf._throwsOnInvalid.bind(thisObj, thisObj, extOptions);
+	return shapeOf._buildActions(thisObj, obj, extOptions);
+};
+
+/**
+ * Builds the actions on a shapeOf().throwsOnInvalid() call and sets the 
+ *
+ * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
+ * @param      {object}  errorObj  The error object to throw if validation fails
+ * @return     {object}  An object for making chained calls
+ */
+shapeOf._throwsOnInvalid = (thisObj, options, errorObj) => {
+	if (errorObj) {
+		options.errorObj = errorObj;
+	}
+	return shapeOf._buildThrowsOnExceptionActions(thisObj, options.obj, options);
+};
+
+/**
  * Builds the actions on a shapeOf().onInvalid() call and adds a callback to the onInvalid list.
  * 
  * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
- * @param      {options} options  The accumulated options from the shapeOf chain calls
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @param      {Function}  callback  The callback to execute on an invalid evaluation
  * @return     {object}  An object for making chained calls
  */
@@ -149,7 +195,7 @@ shapeOf._onInvalid = (thisObj, options, callback) => {
  * Builds the actions on a shapeOf().onValid() call and adds a callback to the onValid list.
  * 
  * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
- * @param      {options} options  The accumulated options from the shapeOf chain calls
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @param      {Function}  callback  The callback to execute on a valid evaluation
  * @return     {object}  An object for making chained calls
  */
@@ -166,7 +212,7 @@ shapeOf._onValid = (thisObj, options, callback) => {
  *       don't execute.
  * 
  * @param      {object}  thisObj  The 'this' object, which is the shapeOf function
- * @param      {options} options  The accumulated options from the shapeOf chain calls
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
  * @param      {Function}  callback  The callback to execute after a valid evaluation, or an invalid evaluation without a .throwsOnInvalid toggle
  * @return     {object}  An object for making chained calls
  */
@@ -179,8 +225,8 @@ shapeOf._onComplete = (thisObj, options, callback) => {
 /**
  * Called whenever shapeOf().shouldBe is called.
  *
- * @param      {options} options  The accumulated options from the shapeOf chain calls
- * @param      {<type>}   schema   The schema supplied by the .shouldBe() call
+ * @param      {object}  options  The accumulated options from the shapeOf chain calls
+ * @param      {object}   schema   The schema supplied by the .shouldBe() call
  * @return     {boolean}  True if object in question follows provided schema
  */
 shapeOf._shouldBe = (options, schema) => {
@@ -199,8 +245,12 @@ shapeOf._shouldBe = (options, schema) => {
 	if (options.onValid && rtn) {
 		options.onValid.forEach(callback => callback(obj, schema));
 	}
-	if (options.throwOnInvalid && !rtn)
-		throw 'Invalid shape detected';
+	if (options.throwOnInvalid && !rtn) {
+		if (options.errorObj)
+			throw options.errorObj;
+		else
+			throw 'Invalid shape detected';
+	}
 	if (options.onComplete) {
 		options.onComplete.forEach(callback => callback(obj, schema));
 	}
