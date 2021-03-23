@@ -1,10 +1,12 @@
 {
   "name": "shape-of",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A lightweight schema validator for JSON endpoints",
   "main": "index.min.js",
   "scripts": {
-    "test": "node ./test.js"
+    "test": "node ./test.js",
+    "update-readme": "node ./update_readme_version.js",
+    "prepare-for-git": "npm run-script update-readme && git add . && git status"
   },
   "repository": {
     "type": "git",

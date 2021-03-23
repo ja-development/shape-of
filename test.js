@@ -360,6 +360,9 @@ expect(
 	shapeOf([1,'a',3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number).ofSize(4, 1))
 ).isFalsy();
 expect(
+	shapeOf([1,'a',3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number, shapeOf.string).ofSize(4, 1))
+).isTruthy();
+expect(
 	shapeOf([1,2,3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number).ofSize(3))
 ).isTruthy();
 
