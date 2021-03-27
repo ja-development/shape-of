@@ -366,6 +366,92 @@ expect(
 	shapeOf([1,2,3]).shouldBeExactly(shapeOf.arrayOf(shapeOf.number).ofSize(3))
 ).isTruthy();
 
+// Testing mutation
+let doubleMutator = (obj) => {
+	if (typeof obj === 'object' && typeof obj.foo === 'number') {
+		obj.foo = obj.foo * 2;
+		return obj;
+	}
+};
+let addOneMutator = (obj) => {
+	if (typeof obj === 'number')
+		return obj + 1;
+};
+let uppercaseMutator = (obj) => {
+	if (typeof obj === 'string')
+		return obj.toUpperCase();
+};
+let lowercaseMutator = (obj) => {
+	if (typeof obj === 'string')
+		return obj.toLowerCase();
+};
+let obj = {
+	'foo': 2
+};
+let obj2 = {
+	first: {
+		'foo': 100
+	},
+	second: 41,
+	third: 'hello',
+	fourth: ['FOO', 'BAR']
+};
+let obj2Schema = {
+	first: doubleMutator,
+	second: addOneMutator,
+	third: uppercaseMutator,
+	fourth: shapeOf.arrayOf(lowercaseMutator)
+};
+let obj3 = {
+	first: 'foo',
+	second: 'bar',
+	third: 'baz'
+}
+let obj3Schema = {
+	first: uppercaseMutator,
+	second: uppercaseMutator,
+	third: uppercaseMutator
+}
+expect(
+	shapeOf(obj).shouldBe(doubleMutator)
+).isTruthy();
+expect(
+	obj.foo
+).is(4);
+expect(
+	shapeOf(42).returnsObject.shouldBe(addOneMutator)
+).is(43);
+expect(
+	shapeOf(obj2).shouldBe(obj2Schema)
+).isTruthy();
+expect(
+	obj2.first.foo
+).is(200);
+expect(
+	obj2.second
+).is(42);
+expect(
+	obj2.third
+).is('HELLO');
+expect(
+	obj2.fourth.length
+).is(2);
+expect(
+	obj2.fourth[0] + ' ' + obj2.fourth[1]
+).is('foo bar');
+expect(
+	shapeOf(obj3).shouldBe(obj3Schema)
+).isTruthy();
+expect(
+	obj3.first
+).is('FOO');
+expect(
+	obj3.second
+).is('BAR');
+expect(
+	obj3.third
+).is('BAZ');
+
 
 // 
 // Results

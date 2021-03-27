@@ -1,12 +1,13 @@
 {
   "name": "shape-of",
-  "version": "0.0.4",
+  "version": "0.0.5",
+  "compatibleSchemaVersion": "0.0.5",
   "description": "A lightweight schema validator for JSON endpoints",
   "main": "index.min.js",
   "scripts": {
     "test": "node ./test.js",
-    "update-readme": "node ./update_readme_version.js",
-    "prepare-for-git": "npm run-script update-readme && git add . && git status"
+    "update-versions": "node ./update_version.js",
+    "prepare-for-git": "npm run-script update-versions && git add . && git status"
   },
   "repository": {
     "type": "git",
@@ -15,7 +16,9 @@
   "keywords": [
     "json",
     "schema",
+    "shape",
     "validator",
+    "validation",
     "javascript"
   ],
   "author": "Jeff Allen",
