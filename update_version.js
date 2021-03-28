@@ -2,7 +2,7 @@
  * shapeOf
  * README.md Updater Script
  * 
- * A small utility script to update the first line of README.md to match package.json.
+ * A small utility script to update README.md and index.js to match package.json versions.
  */
 const fs = require('fs');
 
