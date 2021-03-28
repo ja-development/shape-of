@@ -3,38 +3,61 @@
  * Unit Tests
  */
 
+let args = process.argv.map(a => a.toLowerCase());
+let verbose = args.indexOf('verbose') >= 0 || args.indexOf('v') >= 0;
+
+if (verbose)
+	console.log('Starting shapeOf unit tests...');
+
 const shapeOf = require('./index.js');
 
 // Create a simple unit testing object.
 let failed = 0;
 let passed = 0;
+let markStart = () => {
+	if (verbose)
+		console.log(`Test ${failed+passed} executing...`);
+};
+let markFailed = () => {
+	if (verbose)
+		console.log(`Test ${failed+passed} failed.`);
+	failed++;
+};
+let markPassed = () => {
+	if (verbose)
+		console.log(`Test ${failed+passed} passed.`);
+	passed++;
+};
 let expect = (expr) => {
 	return {
 		isTruthy: () => {
+			markStart();
 			if (!expr) {
 				console.trace('\n\u001b[31mFailed\u001b[0m, expected: a truthy value' +
 					          '\n        result:   ' + expr);
-				failed++;
+				markFailed();
 			} else {
-				passed++;
+				markPassed();
 			}
 		},
 		isFalsy: () => {
+			markStart();
 			if (expr) {
 				console.trace('\n\u001b[31mFailed\u001b[0m, expected: a falsy value' +
 					          '\n        result:   ' + expr);
-				failed++;
+				markFailed();
 			} else {
-				passed++;
+				markPassed();
 			}
 		},
 		is: (val) => {
+			markStart();
 			if (expr != val) {
 				console.trace('\n\u001b[31mFailed\u001b[0m, expected: ' + val +
 					          '\n        result:   ' + expr);
-				failed++;
+				markFailed();
 			} else {
-				passed++;
+				markPassed();
 			}
 		}
 	};
@@ -451,6 +474,215 @@ expect(
 expect(
 	obj3.third
 ).is('BAZ');
+
+// Test serialization
+obj = {
+	"first_name": "Foo",
+	"last_name": "Bar",
+	"title": "Dr.",
+	"sex": "Other",
+	"three_favorite_things": ["Pizza", "Ice Cream", "Sandwiches"],
+};
+let schemaToSerialize = {
+	"first_name": shapeOf.string.ofSize(3, 25),
+	"last_name": "Bar",
+	"title": shapeOf.optional.string.ofSize(2, 15),
+	"sex": shapeOf.oneOf("Male", "Female", "Other"),
+	"three_favorite_things": shapeOf.arrayOf(shapeOf.string, shapeOf.number).ofSize(3)
+};
+let serializedSchemaTest = {
+    "_shapeOfVersion": shapeOf.version,
+    "_shapeOfSchemaVersion": shapeOf.compatibleSchemaVersion,
+    "schema": {
+        "type": "object",
+        "value": [
+            {
+                "type": "field",
+                "name": "first_name",
+                "value": {
+                    "type": "validator",
+                    "name": "shapeOf.string.size",
+                    "callChain": [
+                        {
+                            "name": "shapeOf.string",
+                            "args": []
+                        },
+                        {
+                            "name": "shapeOf.string.size",
+                            "args": [
+                                {
+                                    "type": "primitive",
+                                    "value": 3
+                                },
+                                {
+                                    "type": "primitive",
+                                    "value": 25
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "type": "field",
+                "name": "last_name",
+                "value": {
+                    "type": "primitive",
+                    "value": "Bar"
+                }
+            },
+            {
+                "type": "field",
+                "name": "title",
+                "value": {
+                    "type": "validator",
+                    "name": "shapeOf.optional.string.size",
+                    "optional": true,
+                    "callChain": [
+                        {
+                            "name": "shapeOf.optional.string",
+                            "args": []
+                        },
+                        {
+                            "name": "shapeOf.optional.string.size",
+                            "args": [
+                                {
+                                    "type": "primitive",
+                                    "value": 2
+                                },
+                                {
+                                    "type": "primitive",
+                                    "value": 15
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "type": "field",
+                "name": "sex",
+                "value": {
+                    "type": "validator",
+                    "name": "shapeOf.oneOf",
+                    "callChain": [
+                        {
+                            "name": "shapeOf.oneOf",
+                            "args": [
+                                {
+                                    "type": "primitive",
+                                    "value": "Male"
+                                },
+                                {
+                                    "type": "primitive",
+                                    "value": "Female"
+                                },
+                                {
+                                    "type": "primitive",
+                                    "value": "Other"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "type": "field",
+                "name": "three_favorite_things",
+                "value": {
+                    "type": "validator",
+                    "name": "shapeOf.arrayOf.size",
+                    "callChain": [
+                        {
+                            "name": "shapeOf.arrayOf",
+                            "args": [
+                                {
+                                    "type": "validator",
+                                    "name": "shapeOf.string",
+                                    "callChain": [
+                                        {
+                                            "name": "shapeOf.string",
+                                            "args": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "validator",
+                                    "name": "shapeOf.number",
+                                    "callChain": [
+                                        {
+                                            "name": "shapeOf.number",
+                                            "args": []
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "shapeOf.arrayOf.size",
+                            "args": [
+                                {
+                                    "type": "primitive",
+                                    "value": 3
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+};
+let serializedSchema = JSON.parse(shapeOf.serialize(schemaToSerialize));
+expect(
+	shapeOf(serializedSchema).shouldBeExactly(serializedSchemaTest)
+).isTruthy();
+
+let deserializedSchema = shapeOf.deserialize(shapeOf.serialize(schemaToSerialize));
+let reserializedSchema = JSON.parse(shapeOf.serialize(deserializedSchema));
+expect(
+	shapeOf(reserializedSchema).shouldBeExactly(serializedSchemaTest)
+).isTruthy();
+
+expect(
+	shapeOf(obj).shouldBeExactly(shapeOf.deserialize(reserializedSchema))
+).isTruthy();
+
+
+// Test results using .returnsResults
+let resultsSchema = {
+	'foo': shapeOf.string,
+	'bar': shapeOf.string,
+};
+let resultsObj = {
+	'foo': 42,
+	'bar': 'baz',
+};
+let results = shapeOf(resultsObj).returnsResults.shouldBe(resultsSchema);
+expect(
+	results.log.length
+).is(3);
+expect(
+	results.log[0].message.startsWith('Failed')
+).isTruthy();
+expect(
+	results.success
+).isFalsy();
+
+let mutatorResultsSchema = {
+	'foo': (obj) => {if (typeof obj === 'number') return obj + 1;},
+	'bar': (obj) => {if (typeof obj === 'string') return obj.toUpperCase();},
+};
+results = shapeOf(resultsObj).returnsResults.shouldBe(mutatorResultsSchema);
+expect(
+	results.log.length
+).is(4);
+expect(
+	results.success
+).isTruthy();
+expect(
+	results.log[0].message.startsWith('Mutation')
+).isTruthy();
 
 
 // 

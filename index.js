@@ -71,6 +71,23 @@ let _isInteger = Number.isInteger || ((val) => {
 });
 
 /**
+ * Determines if the current version of something is equal to or greater than the compatible version.
+ *
+ * @param      {String}  currentVer     The current version
+ * @param      {String}  compatibleVer  The compatible version
+ * @return     {boolean}  True if compatibile version, False otherwise.
+ */
+let _isCompatibileVersion = (currentVer, compatibleVer) => {
+	currentVer = currentVer.split('.');
+	currentVer.forEach((n, i) => currentVer[i] = parseInt(n));
+	compatibleVer = compatibleVer.split('.');
+	compatibleVer.forEach((n, i) => compatibleVer[i] = parseInt(n));
+	return currentVer[0] >= compatibleVer[0] && 
+	       (currentVer[1] >= compatibleVer[1] || currentVer[0] > compatibleVer[0]) &&
+	       (currentVer[2] >= compatibleVer[2] || currentVer[1] > compatibleVer[1]);
+};
+
+/**
  * Create an object that returns after using one of the following:
  * 
  *  - shouldBe
@@ -90,7 +107,6 @@ let _isInteger = Number.isInteger || ((val) => {
  */
 let _buildActions = (thisObj, obj, options) => {
 	options = options || {};
-	let exclude = options.exclude || [];
 	let rtn = {};
 
 	if (options.baseObject) {
@@ -98,7 +114,10 @@ let _buildActions = (thisObj, obj, options) => {
 		delete options.baseObject;
 	}
 
+	// Refresh excluded options
 	delete options.exclude;
+	_buildExclusions(options);
+	let exclude = options.exclude;
 
 	if (exclude.indexOf('shouldBe') === -1)
 		rtn.shouldBe = _shouldBe.bind(thisObj, { obj, ...options });
@@ -107,7 +126,10 @@ let _buildActions = (thisObj, obj, options) => {
 		rtn.shouldBeExactly = _shouldBe.bind(thisObj, { obj, exact: true, ...options });
 
 	if (exclude.indexOf('returnsObject') === -1)
-		rtn.returnsObject = _returnsObject(thisObj, { obj, returnsObject: true, ...options });
+		rtn.returnsObject = _returnsObject(thisObj, { obj, ...options });
+
+	if (exclude.indexOf('returnsResults') === -1)
+		rtn.returnsResults = _returnsResults(thisObj, { obj, ...options });
 
 	if (exclude.indexOf('shouldNotBe') === -1)
 		rtn.shouldNotBe = ((obj, schema) => !_shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
@@ -128,6 +150,28 @@ let _buildActions = (thisObj, obj, options) => {
 };
 
 /**
+ * Builds an array of actions to exclude from the next successive chain call
+ * after shapeOf(obj) or any action thereafter.
+ *
+ * @param      {Object}  options   The options built throughout the chain
+ * @param      {Array}   excludes  Additional excluded actions
+ */
+let _buildExclusions = (options, ...excludes) => {
+	options.exclude = options.exclude || [];
+	if (options.returnsObject || options.returnsResults) {
+		excludes = excludes.concat(['returnsObject']);
+		excludes = excludes.concat(['returnsResults']);
+	}
+	if (options.throwsOnInvalid) {
+		excludes = excludes.concat(['throwsOnInvalid']);
+	}
+	excludes.forEach(exclude => {
+		if (options.exclude.indexOf(exclude) === -1)
+			options.exclude.push(exclude);
+	});
+};
+
+/**
  * Builds actions specifically for the .throwsOnException/.throwsOnException() fields.
  *
  * @param      {Object}  thisObj  The 'this' object, which is the shapeOf function
@@ -138,12 +182,9 @@ let _buildActions = (thisObj, obj, options) => {
 let _buildThrowsOnExceptionActions = (thisObj, obj, options) => {
 	let extOptions = {
 		obj,
-		exclude: ['throwsOnInvalid'],
-		throwOnInvalid: true,
+		throwsOnInvalid: true,
 		...options
 	};
-	if (extOptions.returnsObject)
-		extOptions.exclude = extOptions.exclude.concat(['returnsObject']);
 	extOptions.baseObject = _throwsOnInvalid.bind(thisObj, thisObj, extOptions);
 	return _buildActions(thisObj, obj, extOptions);
 };
@@ -169,17 +210,30 @@ let _throwsOnInvalid = (thisObj, options, errorObj) => {
  *
  * @param      {Object}  thisObj  The 'this' object, which is the shapeOf function
  * @param      {Object}  options  The accumulated options from the shapeOf chain calls
- * @param      {Object}  errorObj  The error object to throw if validation fails
+ * @return     {Object}  An object for making chained calls
  */
 let _returnsObject = (thisObj, options) => {
 	let extOptions = {
 		obj: options.obj,
 		returnsObject: true,
-		exclude: ['returnsObject'],
 		...options
 	};
-	if (extOptions.throwOnInvalid)
-		extOptions.exclude = extOptions.exclude.concat(['throwsOnInvalid']);
+	return _buildActions(thisObj, options.obj, extOptions);
+};
+
+/**
+ * Builds the actions of a shapeOf().returnsResults call.
+ *
+ * @param      {Object}  thisObj  The 'this' object, which is the shapeOf function
+ * @param      {Object}  options  The accumulated options from the shapeOf chain calls
+ * @return     {Object}  An object for making chained calls
+ */
+let _returnsResults = (thisObj, options) => {
+	let extOptions = {
+		obj: options.obj,
+		returnsResults: true,
+		...options
+	};
 	return _buildActions(thisObj, options.obj, extOptions);
 };
 
@@ -231,24 +285,41 @@ let _onComplete = (thisObj, options, callback) => {
 /**
  * Called whenever shapeOf().shouldBe is called.
  *
- * @param      {Object}  options  The accumulated options from the shapeOf chain calls
+ * @param      {Object}   options  The accumulated options from the shapeOf chain calls
  * @param      {Object}   schema   The schema supplied by the .shouldBe() call
  * @return     {boolean}  True if object in question follows provided schema
  */
 let _shouldBe = (options, schema) => {
 	let obj = options.obj;
 	let returnsObject = options.returnsObject || false;
+	let returnsResults = options.returnsResults || false;
 	let rtn;
 	let result = false;
+	let log = options.log || [];
+
+	options = {log, ...options};
 
 	// Evaluate object.
-	if (typeof schema === 'function' || (schema._validator && typeof schema._callback === 'function' && schema._callChain)) {
-		if (!schema._validator) {
-			// Function isn't wrapped as a validator; make a direct call to the function.
-			rtn = schema(obj);
+	if (shapeOf.isValidator(schema)) {
+		rtn = _executeValidator(schema, obj);
+		if (typeof rtn === 'undefined') {
+			_validationLog(options, `Failed: Validator '${schema._name}'`, obj);
 		} else {
-			// Validator-wrapper function.
-			rtn = _executeValidator(schema, obj);
+			if (obj !== rtn) {
+				// Value has mutated
+				_validationLog(options, `Mutation: Validator '${schema._name}'`, obj, rtn);
+			}
+		}
+	} else if (typeof schema === 'function') {
+		// Function isn't wrapped as a validator; make a direct call to the function.
+		rtn = schema(obj);
+		if (typeof rtn === 'undefined') {
+			_validationLog(options, `Failed: Validation using functional validator '${schema.name}'`, obj);
+		} else {
+			if (obj !== rtn) {
+				// Value has mutated
+				_validationLog(options, `Mutation: Functional validator '${schema.name}'`, obj, rtn);
+			}
 		}
 	} else if (Array.isArray(schema)) {
 		// Array; expect matching lengths and elements
@@ -258,18 +329,29 @@ let _shouldBe = (options, schema) => {
 				break;
 			let elemResult = _shouldBe({...options, obj: obj[i], returnsObject: true}, schema[i]);
 			arrayResult = arrayResult && typeof elemResult !== 'undefined';
+			if (!arrayResult) {
+				_validationLog(options, `Failed: Array element at index ${i}`, obj[i]);
+			}
 			if (elemResult !== obj[i] && arrayResult) {
 				// Value has mutated; change within array
+				_validationLog(options, `Mutation: Array element at index ${i}`, obj[i], elemResult);
 				obj[i] = elemResult;
 			}
 		}
-		if (arrayResult)
+		if (arrayResult) {
 			rtn = obj;
+		} else {
+			_validationLog(options, "Failed: Array", obj);
+		}
 	} else if (typeof schema === 'object') {
 		rtn = _object(obj, schema, options);
+		if (typeof rtn === 'undefined')
+			_validationLog(options, "Failed: Object", obj);
 	} else {
 		if (schema === obj)
 			rtn = obj;
+		else
+			_validationLog(options, "Failed: Strict equality", obj, rtn);
 	}
 
 	// Prepare to return results and execute callbacks.
@@ -281,7 +363,7 @@ let _shouldBe = (options, schema) => {
 	if (options.onValid && result) {
 		options.onValid.forEach(callback => callback(obj, schema));
 	}
-	if (options.throwOnInvalid && !result) {
+	if (options.throwsOnInvalid && !result) {
 		if (options.errorObj)
 			throw options.errorObj;
 		else
@@ -291,10 +373,17 @@ let _shouldBe = (options, schema) => {
 		options.onComplete.forEach(callback => callback(obj, schema));
 	}
 
-	if (!returnsObject)
-		return result;
-	else
+	if (returnsObject) {
 		return rtn;
+	} else if (returnsResults) {
+		return {
+			success: result,
+			log: log,
+			obj: obj,
+		};
+	} else {
+		return result;
+	}
 };
 
 /**
@@ -320,17 +409,22 @@ let _object = (obj, schema, options) => {
 		let schemaKey = schemaKeys[i];
 		let expected = schema[schemaKey];
 		if (typeof obj[schemaKey] === 'undefined') {
-			if (!expected._optional)
+			if (!expected._optional){
+				_validationLog(options, `Failed: Object with missing key '${schemaKey}'`);
 				return;
-			else
+			} else {
 				continue;
+			}
 		}
 		let valInQuestion = obj[schemaKey];
 		let rtn = _shouldBe({...options, obj: valInQuestion}, expected);
-		if (typeof rtn === 'undefined')
+		if (typeof rtn === 'undefined') {
+			_validationLog(options, `Failed: Object at key '${schemaKey}'`, valInQuestion);
 			return;
+		}
 		if (rtn !== obj[schemaKey]) {
 			// Value has mutated; change within object
+			_validationLog(options, `Mutation: Object field '${schemaKey}'`, obj[schemaKey], rtn);
 			obj[schemaKey] = rtn;
 		}
 	}
@@ -339,8 +433,10 @@ let _object = (obj, schema, options) => {
 		// Exact schema - ensure no extraneous fields are present
 		let objKeys = Object.keys(obj);
 		for (let i = objKeys.length - 1; i >= 0; i--) {
-			if (schemaKeys.indexOf(objKeys[i]) === -1)
+			if (schemaKeys.indexOf(objKeys[i]) === -1) {
+				_validationLog(options, `Failed: Object with extraneous key '${objKeys[i]}'`);
 				return;
+			}
 		}
 	}
 
@@ -348,6 +444,29 @@ let _object = (obj, schema, options) => {
 		return true;
 	else
 		return obj;
+};
+
+/**
+ * Records a log during validation process.
+ *
+ * @param      {Object}  shouldBeOptions  The options object created in _shouldBe()
+ * @param      {string}  message          The message
+ * @param      {Object}  obj              Extra objects/data to attach
+ */
+let _validationLog = (shouldBeOptions, message, ...obj) => {
+	if (!shouldBeOptions.returnsResults)
+		return;
+
+	let log = shouldBeOptions.log;
+	let rtn = { message };
+
+	if (obj.length > 0) {
+		if (obj.length === 1)
+			obj = obj[0];
+		rtn.obj = obj;
+	}
+
+	log.push(rtn);
 };
 
 /**
@@ -418,6 +537,37 @@ shapeOf.Validator = function(name, callback, options) {
 };
 
 /**
+ * A key-value set of validator names to validator objects.
+ */
+shapeOf.Validator._validators = {};
+
+/**
+ * A token shared by validators to verify as validators since they aren't
+ * sub-classes of shapeOf.Validator.
+ *
+ * @type       {Object}
+ */
+let _validatorToken = {validator: 'token'};
+
+/**
+ * Determines whether the specified object is a validator.
+ *
+ * @param      {Object}   obj     The object
+ * @return     {boolean}  True if the specified object is a validator, False otherwise.
+ */
+shapeOf.isValidator = (obj) => {
+	return Boolean(
+		   obj &&
+		   obj._validatorToken &&
+		   obj._validatorToken === _validatorToken &&
+		   obj._callback &&
+	       typeof obj._callback === 'function' &&
+	       obj._callChain &&
+	       obj._thisCall
+	);
+};
+
+/**
  * Generates a call signature for an individual validator.
  *
  * @param      {string}    validatorName  The validator name
@@ -452,12 +602,13 @@ let _makeValidatorProperties = (name, callback, options, existingOptions) => {
 	rtn._thisCall = _generateValidatorCallSignature(name, [], callback);
 	rtn._callChain = [rtn._thisCall];               // An ordered list of validator calls
 	rtn._options = options;
-	rtn._validator = true;
 	rtn._optional = options.optional || false;
 	rtn._requiredArgsCount = options.requiredArgsCount || Math.max(0, callback.length - 1);
 	rtn._callback = callback;
 	rtn._aliases = options.aliases || [];
 	rtn._subValidators = {};
+	rtn._validatorToken = _validatorToken;
+	// rtn.toJSON = _serializeValidator.bind(null, rtn);
 
 	if (options.serialize)
 		rtn._serialize = options.serialize;
@@ -537,7 +688,6 @@ let _executeValidator = (validator, obj) => {
 		let link = callChain[i];
 		if (link.args.length < link._requiredArgsCount)
 			throw 'Missing required arguments for validator: ' + link._name;
-		// console.log('Executing validator ' + link.name + ' with args: ' + link.args, link.args.length);
 		let args = link.args.concat([obj]);
 		obj = link._callback(...args);
 		if (typeof obj === 'undefined')
@@ -547,25 +697,199 @@ let _executeValidator = (validator, obj) => {
 };
 
 /**
- * A key-value set of validator names to validator objects.
+ * Serializes a schema and returns as a JSON-encoded string or an object equivalent.
+ *
+ * @param      {Object}  schema         The schema
+ * @param      {Boolean} returnsObject  If true, returns an object instead of a string
+ * @return     {Object|String}  JSON-encoded string of schema or object equivalent
  */
-shapeOf.Validator._validators = {};
+shapeOf.serialize = (schema, returnsObject) => {
+	let rtn = {
+		'_shapeOfVersion': shapeOf.version,
+		'_shapeOfSchemaVersion': shapeOf.compatibleSchemaVersion,
+		'schema': _serialize(schema)
+	};
 
-shapeOf.Validator._serialize = (validator) => {
+	if (!returnsObject)
+		return JSON.stringify(rtn);
+	else
+		return rtn;
+};
+
+/**
+ * Deserializes a schema and returns the schema object.
+ *
+ * @param      {String|Object}  serializedSchema  The serialized schema
+ * @return     {Object}   Schema object
+ */
+shapeOf.deserialize = (serializedSchema) => {
+	if (typeof serializedSchema === 'string') {
+		try {
+			serializedSchema = JSON.parse(serializedSchema);
+		} catch (e) {
+			throw "Error while deserializing schema:\n" + e.toString();
+		}
+	}
+	if (!serializedSchema._shapeOfVersion || !serializedSchema._shapeOfSchemaVersion || !serializedSchema.schema) {
+		throw "Object doesn't appear to be a valid shapeOf schema.";
+	}
+	if (!_isCompatibileVersion(shapeOf.compatibleSchemaVersion, serializedSchema._shapeOfSchemaVersion)) {
+		throw `Incompatible schema versions, current version == ${shapeOf.compatibleSchemaVersion}, schema version == ${serializedSchema._shapeOfSchemaVersion}`;
+	}
+
+	return _deserialize(serializedSchema.schema);
+};
+
+/**
+ * Deserializes a validator from a serialized schema.
+ *
+ * @param      {Object}  obj     The serialized validator
+ * @return     {Validator}   Validator object
+ */
+let _deserializeValidator = (obj) => {
+	if (!obj.type || obj.type !== 'validator')
+		throw "Object isn't a validator type: " + obj.toString();
+	if (!obj.callChain || !Array.isArray(obj.callChain) ||
+		!obj.name || typeof obj.name !== 'string')
+		throw "Malformed validator: " + obj.toString();
+
+	let optional = false;
+
+	if (obj.optional && typeof obj.optional === 'boolean')
+		optional = true;
+
+	// Run through the call chain, regenerating validators along the way.
+	let rtn;
+	obj.callChain.forEach(link => {
+		if (!link.name || typeof link.name !== 'string' ||
+			!link.args || !Array.isArray(link.args))
+			throw "Malformed validator: " + obj.toString();
+
+		let validator = shapeOf.Validator._validators[link.name];
+		if (typeof validator === 'undefined')
+			throw "Validator not found: " + link.name;
+
+		let simpleName = link.name.split('.').pop();
+		
+		if (rtn) {
+			if (!rtn[simpleName])
+				throw "Cannot find sub-validator " + link.name;
+		}
+
+		if (link.args.length > 0) {
+			// Set arguments for validator by deserializing arguments
+			let args  = [];
+			link.args.forEach(arg => args.push(_deserialize(arg)));
+			if (rtn)
+				rtn = rtn[simpleName](...args);
+			else
+				rtn = validator(...args);
+		} else {
+			// No arguments for validator needed
+			if (rtn)
+				rtn = rtn[simpleName];
+			else
+				rtn = validator;
+		}
+	});
+
+	return rtn;
+};
+
+/**
+ * Deserializes a part of a serialized schema.
+ *
+ * @param      {Object}    obj     The object to deserialize
+ * @param      {Object}    parent  Optional. The parent object for 'field' types.
+ * @return     {Object}    Deserialized object.
+ */
+let _deserialize = (obj, parent) => {
+	if (!obj.type || typeof obj.type !== 'string')
+		throw "Object isn't a valid type: " + obj.toString();
+	if (typeof obj.value === 'undefined' && obj.type !== 'validator')
+		throw "Object missing value: " + obj.toString();
+
+	let rtn;
+
+	// Objects
+	if (obj.type === 'object') {
+
+		if (!Array.isArray(obj.value))
+			throw "Type 'object' value must be an array";
+		rtn = {};
+		obj.value.forEach(field => {
+			_deserialize(field, rtn);
+		});
+
+	// Object fields
+	} else if (obj.type === 'field') {
+
+		if (!obj.name || typeof obj.name !== 'string')
+			throw "Illegal/missing field name for object " + parent.toString();
+		if (!parent)
+			throw "No parent present for 'field' type";
+		parent[obj.name] = _deserialize(obj.value);
+
+	// Arrays
+	} else if (obj.type === 'array') {
+
+		if (!Array.isArray(obj.value))
+			throw "Type 'array' value must be array";
+		rtn = [];
+		obj.value.forEach(elem => {
+			rtn.push(_deserialize(elem));
+		});
+
+	// Primitives
+	} else if (obj.type === 'primitive') {
+
+		rtn = obj.value;
+
+	// Validators
+	} else if (obj.type === 'validator') {
+
+		rtn = _deserializeValidator(obj);
+
+	} else {
+		throw "Unknown object type: " + obj.type;
+	}
+
+	return rtn;
+};
+
+/**
+ * Creates a serializable version of a validator.
+ *
+ * @param      {Object}  validator  The validator
+ * @return     {Object}  Serializable version of validator.
+ */
+let _serializeValidator = (validator) => {
 	// Create core descriptor
 	let rtn = {
 		"type": "validator",
-		"validatorName": validator._name,
+		"name": validator._name,
 	};
 
+	if (validator._optional)
+		rtn.optional = true;
+
 	// Build parameter values
-	let params = [];
-	let args = validator._args;
-	if (args && args.length > 0) {
-		for (let i = 0; i < args.length; i++) {
-			params.push(shapeOf.Validator._serializeArg(args[i]));
+	let callChain = rtn.callChain = [];
+	let links = validator._callChain;
+	if (links && links.length > 0) {
+		for (let i = 0; i < links.length; i++) {
+			let link = links[i];
+			let args = link.args;
+			let sargs = [];
+			let slink = {
+				'name': link.name,
+				'args': sargs
+			};
+			for (let j = 0; j < args.length; j++) {
+				sargs.push(_serialize(args[j]));
+			}
+			callChain.push(slink);
 		}
-		rtn.params = params;
 	}
 
 	// If an extended serializer function is found, execute it
@@ -577,25 +901,47 @@ shapeOf.Validator._serialize = (validator) => {
 	}
 
 	return rtn;
-
 };
 
-shapeOf.Validator._serializeArg = (arg) => {
+/**
+ * Creates a serializable version of an object from a schema.
+ *
+ * @param      {Array}   obj     The argument
+ * @return     {Object}  Serializable version of the object.
+ */
+let _serialize = (obj) => {
 	let rtn = {
-		'type': 'primitive',
+		type: 'primitive',
 	};
-	if (arg.serialize && typeof arg.serialize === 'function') {
+	if (obj.toJSON) {
+		rtn = obj;
+	} else if (shapeOf.isValidator(obj)) {
+		rtn = _serializeValidator(obj);
+	} else if (obj.serialize && typeof obj.serialize === 'function') {
 		rtn = {
 			...rtn,
-			...arg.serialize()
+			...obj.serialize()
 		};
-	} else if (Array.isArray(arg)) {
+	} else if (Array.isArray(obj)) {
+		rtn.type = 'array';
 		let val = rtn.value = [];
-		for (let i = 0; i < arg.length; i++) {
-			val.push(shapeOf.Validator._serializeArg(arg[i]));
+		for (let i = 0; i < obj.length; i++) {
+			val.push(_serialize(obj[i]));
+		}
+	} else if (typeof obj === 'object' && obj !== null) {
+		rtn.type = 'object';
+		let keys = Object.keys(obj);
+		let fields = rtn.value = [];
+		for (let i = 0; i < keys.length; i++) {
+			let key = keys[i];
+			fields.push({
+				type: 'field',
+				name: key,
+				value: _serialize(obj[key])
+			});
 		}
 	} else {
-		rtn.value = arg;
+		rtn.value = obj;
 	}
 
 	return rtn;
@@ -939,7 +1285,8 @@ let _coreValidators = [
 		name:     'shapeOf.number.range',
 		callback: _shapeOf_number_range,
 		options: {
-			parent: 'shapeOf.number'
+			parent: 'shapeOf.number',
+			requiredArgsCount: 2
 		}
 	},
 	{
@@ -947,7 +1294,8 @@ let _coreValidators = [
 		callback: _shapeOf_greaterThanOrEqualTo,
 		options: {
 			parent: 'shapeOf.number',
-			aliases: 'shapeOf.number.greaterThanOrEqualTo'
+			aliases: 'shapeOf.number.greaterThanOrEqualTo',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -955,7 +1303,8 @@ let _coreValidators = [
 		callback: _shapeOf_lessThanOrEqualTo,
 		options: {
 			parent: 'shapeOf.number',
-			aliases: 'shapeOf.number.lessThanOrEqualTo'
+			aliases: 'shapeOf.number.lessThanOrEqualTo',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -966,7 +1315,8 @@ let _coreValidators = [
 		name:     'shapeOf.integer.range',
 		callback: _shapeOf_number_range,
 		options: {
-			parent: 'shapeOf.integer'
+			parent: 'shapeOf.integer',
+			requiredArgsCount: 2
 		}
 	},
 	{
@@ -974,7 +1324,8 @@ let _coreValidators = [
 		callback: _shapeOf_greaterThanOrEqualTo,
 		options: {
 			parent: 'shapeOf.integer',
-			aliases: 'shapeOf.integer.greaterThanOrEqualTo'
+			aliases: 'shapeOf.integer.greaterThanOrEqualTo',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -982,7 +1333,8 @@ let _coreValidators = [
 		callback: _shapeOf_lessThanOrEqualTo,
 		options: {
 			parent: 'shapeOf.integer',
-			aliases: 'shapeOf.integer.lessThanOrEqualTo'
+			aliases: 'shapeOf.integer.lessThanOrEqualTo',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -994,14 +1346,16 @@ let _coreValidators = [
 		callback: _shapeOf_length,
 		options: {
 			parent: 'shapeOf.string',
-			aliases: 'shapeOf.string.ofSize'
+			aliases: 'shapeOf.string.ofSize',
+			requiredArgsCount: 1
 		}
 	},
 	{
 		name:     'shapeOf.string.pattern',
 		callback: _shapeOf_string_pattern,
 		options: {
-			parent: 'shapeOf.string'
+			parent: 'shapeOf.string',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -1013,7 +1367,8 @@ let _coreValidators = [
 		callback: _shapeOf_length,
 		options: {
 			parent: 'shapeOf.array',
-			aliases: 'shapeOf.array.ofSize'
+			aliases: 'shapeOf.array.ofSize',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -1044,7 +1399,8 @@ let _coreValidators = [
 		callback: _shapeOf_length,
 		options: {
 			parent: 'shapeOf.arrayOf',
-			aliases: 'shapeOf.arrayOf.ofSize'
+			aliases: 'shapeOf.arrayOf.ofSize',
+			requiredArgsCount: 1
 		}
 	},
 	{
@@ -1053,11 +1409,17 @@ let _coreValidators = [
 	},
 	{
 		name:     'shapeOf.oneOf',
-		callback: _shapeOf_oneOf
+		callback: _shapeOf_oneOf,
+		options: {
+			requiredArgsCount: 1
+		}
 	},
 	{
 		name:     'shapeOf.oneOfType',
-		callback: _shapeOf_oneOfType
+		callback: _shapeOf_oneOfType,
+		options: {
+			requiredArgsCount: 1
+		}
 	},
 ];
 
@@ -1108,8 +1470,16 @@ _coreValidators.forEach(validator => {
 
 })();
 
-// NOTE: The following lines are automatically updated when running 'npm run-script update-version'
-shapeOf.version = "0.0.5"; // core version
-shapeOf.compatibleSchemaVersion = "0.0.5"; // compatible schema version
+
+
+// NOTE: The following variables are automatically updated when running 'npm run-script update-versions'
+shapeOf._versionCompatibilityHistory = { // version: compatibleSchemaVersion
+	'0.0.6': '0.0.6',
+	'0.0.5': '0.0.5',
+}; // end of shapeOf._versionCompatibilityHistory
+shapeOf.version = "0.0.6"; // core version
+shapeOf.compatibleSchemaVersion = "0.0.6"; // compatible schema version
+
+
 
 module.exports = shapeOf;

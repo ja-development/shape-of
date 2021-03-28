@@ -1,12 +1,39 @@
-# shapeOf v0.0.5
-A lightweight schema validator for JSON endpoints and Plain Old JavaScript Objects (POJOs).
+# shapeOf v0.0.6
+A lightweight schema validator and object mutator for JSON endpoints and Plain Old JavaScript Objects (POJOs).
 
 Features include:
 - **Clear Syntax**: The shapeOf library was developed with simplicity in mind. Defined schemas are intended to be semantical and quick for a reader to understand.
-- **Flexibility**: Schemas can be defined as anything from simple data types to elaborate schemas with custom validators.
+- **Flexible**: Schemas can be defined as anything from simple data types to elaborate schemas with custom validators.
 - **Customizable**: Custom validators can be introduced as sole functions, or can be wrapped as official validators that extend existing validators.
 - **Vaildator Pipeline**: Multiple validators can be applied to a single value, ensuring data is shaped exactly as intended.
 - **Mutators**: Validators can also be written as mutators, altering the object in question throughout the validation pipeline.
+- **Validation Details**: A validation process can generate details on why an object is invalid and/or which values mutated.
+- **Serializable Schemas**: Schemas can be serialized for storage or delivery and reconstituted through parsing the serialization later.
+- **No Dependencies**: shapeOf has no dependencies, helping to keep overall project size small.
+
+
+## Table of Contents
+1. [Installation](#installation)
+2. [Basic Usage](#basic-usage)
+3. [Strict Shape Enforcement](#strict-shape-enforcement)
+4. [Optional Object Fields](#optional-object-fields)
+5. [Type Validators](#type-validators)
+    1. [Primitive Type Validators](#primitive-type-validators)
+        1. [Primitive Number Type: Ranges, Minimums, and Maximums](#primitive-number-type-ranges-minimums-and-maximums)
+        2. [Primitive String Type: Length](#primitive-string-type-length)
+        3. [Primitive String Type: Regular Expressions](#primitive-string-type-regular-expressions)
+        4. [Primitive Array Type: Size](#primitive-array-type-size)
+    2. [Composite/Strict Type Validators](#compositestrict-type-validators)
+        1. [Composite Array Type: Size](#composite-array-type-size)
+    3. [Custom Validators](#custom-validators)
+        1. [Simple Custom Validators](#simple-custom-validators)
+        2. [Advanced Custom Validators](#advanced-custom-validators)
+6. [Mutators](#mutators)
+7. [Throwing Exceptions](#throwing-exceptions)
+8. [Capturing Result Details](#capturing-result-details)
+9. [Event Listeners](#event-listeners)
+10. [Serializing Schemas](#serializing-schemas)
+11. [License](#license)
 
 
 ## Installation
@@ -305,10 +332,11 @@ To instantiate a new validator, use the `shapeOf.Validator()` function:
 	</tbody>
 </table>
 
+
 ## Mutators
 Mutators are validators that alter the value(s) of the object(s) in question. Some things to note about mutation and mutators:
 - Mutation should only occur within a mutator if the object is first considered valid.
-- Mutators should be avoided whenever possible. As schemas become more complex, it may become difficult to track how an object is changed through a validator pipeline.
+- Mutators should be avoided whenever possible. As schemas become more complex, it may become difficult to track how an object has changed through a validator pipeline.
 
 An example mutator:
 ```javascript
@@ -346,6 +374,7 @@ let schema = stringToUppercase;
 let result = shapeOf(obj).returnsObject.shouldBe(schema);   // 'FOO'
 ```
 
+
 ## Throwing Exceptions
 An evaluation of an object using `shapeOf()` can optionally throw an exception. To do so, add `.throwsOnInvalid` after a `shapeOf()` call:
 ```javascript
@@ -371,7 +400,43 @@ try {
 ```
 
 
-## Validation Event Listeners
+## Capturing Result Details
+If details are needed on why an object is failing validation, the `.returnsResults` toggle can be used after a `shapeOf()` call:
+```javascript
+let schema = {
+	'foo': shapeOf.string
+};
+let malformedObj = {
+	'foo': 42
+};
+
+// Generate detailed results by using .returnsResults
+let results = shapeOf(malformedObj).returnsResults.shouldBe(schema);
+
+// results = {
+//   success: false,
+//   log: [
+//     {
+//       message: "Failed: Validator 'shapeOf.string'",
+//       obj: 42
+//     },
+//     {
+//       message: "Failed: Object at key 'foo'",
+//       obj: 42
+//     },
+//     {
+//       message: "Failed: Object",
+//       obj: { foo: 42 }
+//     }
+//   ],
+//   obj: { foo: 42, bar: 'baz'}
+// }
+```
+
+When results are returned from a validation, it comes in the form of an object that includes three fields; `success`, `log`, and `obj`. The `success` field is a boolean that will be false if validation fails. The `log` array lists out specifics on what happened during validation, including mutations and failed objects. And the `obj` field contains the object in question, including mutations.
+
+
+## Event Listeners
 shapeOf supports event listeners for when validation fails, passes, and/or completes:
 | Function Name | Description | Listener Parameters |
 | ------------- | ----------- | ------------------- |
@@ -409,3 +474,52 @@ let obj = {
 let schema = shapeOf.object;
 let result = shapeOf(obj).onComplete(completeHandler).shouldBe(schema);   // true, and console output: Validation complete  {'foo': 'bar'}
 ```
+
+
+## Serializing Schemas
+Schemas can be serialized by using the `shapeOf.serialize()` function:
+```javascript
+let schema = {
+	'first_name': shapeOf.string.ofSize(3, 50),
+	'last_name': shapeOf.string.ofSize(3, 50),
+};
+
+let serializedSchema = shapeOf.serialize(schema);   // returns a JSON-encoded string of the serialized schema
+```
+
+Schemas can then be reconstituted using the `shapeOf.deserialize()` function:
+```javascript
+let schema = {
+	'first_name': shapeOf.string.ofSize(3, 50),
+	'last_name': shapeOf.string.ofSize(3, 50),
+};
+
+let serializedSchema = shapeOf.serialize(schema);   // returns a JSON-encoded string of the serialized schema
+
+let originalSchema = shapeOf.deserialize(serializedSchema);   // returns a schema equivalent to the 'schema' object
+```
+
+
+## License
+
+MIT License
+
+Copyright (c) 2021 Jeff Allen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
