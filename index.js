@@ -90,9 +90,8 @@ let _isCompatibileVersion = (currentVer, compatibleVer) => {
 /**
  * Create an object that returns after using one of the following:
  * 
- *  - shouldBe
- *  - shouldBeExactly
- *  - shouldNotBe
+ *  - returnsObject
+ *  - returnsResults
  *  - throwsOnInvalid
  *  - onValid
  *  - onInvalid
@@ -294,10 +293,18 @@ let _shouldBe = (options, schema) => {
 	let returnsObject = options.returnsObject || false;
 	let returnsResults = options.returnsResults || false;
 	let rtn;
+
 	let result = false;
 	let log = options.log || [];
 
 	options = {log, ...options};
+
+	// Add to shouldBe()/shouldBeExactly() options chain
+	if (!shapeOf._shouldBeOptionsChain) {
+		shapeOf._shouldBeOptionsChain = [];
+	}
+	shapeOf._lastShouldBeOptions = options;
+	shapeOf._shouldBeOptionsChain.push(options);
 
 	// Evaluate object.
 	if (shapeOf.isValidator(schema)) {
@@ -373,6 +380,10 @@ let _shouldBe = (options, schema) => {
 		options.onComplete.forEach(callback => callback(obj, schema));
 	}
 
+	// Update the shouldBe()/shouldBeExactly() options chain
+	shapeOf._lastShouldBeOptions = shapeOf._shouldBeOptionsChain.pop();
+
+	// Return based on options
 	if (returnsObject) {
 		return rtn;
 	} else if (returnsResults) {
@@ -448,12 +459,25 @@ let _object = (obj, schema, options) => {
 
 /**
  * Records a log during validation process.
+ * 
+ * If the shouldBeOptions are omitted and only a message is included, the last call to
+ * shouldBe's options are used.
  *
- * @param      {Object}  shouldBeOptions  The options object created in _shouldBe()
+ * @param      {string|Object}  shouldBeOptions  The options object created in _shouldBe(), or a message
  * @param      {string}  message          The message
  * @param      {Object}  obj              Extra objects/data to attach
  */
 let _validationLog = (shouldBeOptions, message, ...obj) => {
+	if (!shouldBeOptions) {
+		shouldBeOptions = shapeOf._lastShouldBeOptions;
+	} else if (typeof shouldBeOptions === 'string') {
+		if (typeof message !== 'undefined') {
+			obj.push(message);
+		}
+		message = shouldBeOptions;
+		shouldBeOptions = shapeOf._lastShouldBeOptions;
+	}
+
 	if (!shouldBeOptions.returnsResults)
 		return;
 
@@ -480,22 +504,46 @@ let _validatorArgHandler = function(...args) {
 	if (args.length < this._requiredArgsCount)
 		throw `Validator '${this._name}' requires at least ${this._requiredArgsCount} arguments`;
 
+	// Copy bindings from original validator.
+	let bindings = { ...this };
+
+	bindings._callChain = [].concat(this._callChain);
+	bindings._callChain.pop();  // remove old _thisCall with empty arguments
+
 	// Generate a new set of arguments on the call chain
-	this._thisCall.args = args;
+	bindings._thisCall = _generateValidatorCallSignature(this._thisCall);
+	bindings._thisCall.args = [].concat(args);
+	bindings._callChain.push(bindings._thisCall);  // add updated _thisCall to _callChain
 
 	// (Re)attach sub-validators to 'this' object.
-	let subKeys = Object.keys(this._subValidators);
+	let subKeys = Object.keys(bindings._subValidators);
 	for (let i = subKeys.length - 1; i >= 0; i--) {
 		let key = subKeys[i];
-		this[key] = this._subValidators[key];
+		let subValidator = bindings._subValidators[key];
+		let subValidatorProps = _makeValidatorProperties(
+			subValidator._name,
+			subValidator._callback,
+			{
+				...subValidator._options,
+				_callChain: bindings._callChain
+			}
+		);
+		let newSubValidator = _validatorArgHandler.bind(subValidatorProps);
+		let extKeys = Object.keys(subValidatorProps);
+		for (let i = extKeys.length - 1; i >= 0; i--) {
+			let subKey = extKeys[i];
+			newSubValidator[subKey] = bindings[subKey];
+		}
+
+		bindings[key] = newSubValidator;
 	}
 
 	// Copy over bindings to public-facing.
-	let rtn = _validatorArgHandler.bind(this);
-	let extKeys = Object.keys(this);
+	let rtn = _validatorArgHandler.bind(bindings);
+	let extKeys = Object.keys(bindings);
 	for (let i = extKeys.length - 1; i >= 0; i--) {
 		let key = extKeys[i];
-		rtn[key] = this[key];
+		rtn[key] = bindings[key];
 	}
 
 	return rtn;
@@ -569,18 +617,29 @@ shapeOf.isValidator = (obj) => {
 
 /**
  * Generates a call signature for an individual validator.
+ * 
+ * If validatorName is set to a previous call signature object, a duplicate of the 
+ * link is generated.
  *
- * @param      {string}    validatorName  The validator name
+ * @param      {string|Object}  validatorName  The validator name or previous call signature object
  * @param      {Array}     argsList       The arguments list
  * @param      {Function}  callback       The callback to execute
  * @return     {Object}  The call signature object
  */
 let _generateValidatorCallSignature = (validatorName, argsList, callback) => {
-	return {
-		name: validatorName,
-		args: argsList,
-		_callback: callback
-	};
+	if (typeof validatorName === 'object') {
+		return {
+			name: validatorName.name,
+			args: [].concat(validatorName.args),
+			_callback: validatorName._callback
+		}
+	} else {
+		return {
+			name: validatorName,
+			args: argsList,
+			_callback: callback
+		};
+	}
 };
 
 /**
@@ -598,9 +657,13 @@ let _makeValidatorProperties = (name, callback, options, existingOptions) => {
 	options = {...existingOptions, ...options};
 	let rtn = {};
 
+	let callChain = [].concat(options._callChain || []);
+	let thisCall = _generateValidatorCallSignature(name, [], callback)
+	callChain.push(thisCall);
+
 	rtn._name = name;
-	rtn._thisCall = _generateValidatorCallSignature(name, [], callback);
-	rtn._callChain = [rtn._thisCall];               // An ordered list of validator calls
+	rtn._thisCall = thisCall;
+	rtn._callChain = callChain;               // An ordered list of validator calls
 	rtn._options = options;
 	rtn._optional = options.optional || false;
 	rtn._requiredArgsCount = options.requiredArgsCount || Math.max(0, callback.length - 1);
@@ -698,19 +761,24 @@ let _executeValidator = (validator, obj) => {
 
 /**
  * Serializes a schema and returns as a JSON-encoded string or an object equivalent.
+ * 
+ * Options include:
+ * - returnsObject
  *
  * @param      {Object}  schema         The schema
- * @param      {Boolean} returnsObject  If true, returns an object instead of a string
+ * @param      {Object}  options        Options to use when serializing
  * @return     {Object|String}  JSON-encoded string of schema or object equivalent
  */
-shapeOf.serialize = (schema, returnsObject) => {
+shapeOf.serialize = (schema, options) => {
 	let rtn = {
 		'_shapeOfVersion': shapeOf.version,
 		'_shapeOfSchemaVersion': shapeOf.compatibleSchemaVersion,
 		'schema': _serialize(schema)
 	};
 
-	if (!returnsObject)
+	options = options || {};
+
+	if (!options.returnsObject)
 		return JSON.stringify(rtn);
 	else
 		return rtn;
@@ -850,6 +918,14 @@ let _deserialize = (obj, parent) => {
 
 		rtn = _deserializeValidator(obj);
 
+	// Regular expressions
+	} else if (obj.type === 'regexp') {
+
+		if (typeof obj.value !== 'string' || typeof obj.flags !== 'string')
+			throw 'RegExp object missing required field';
+
+		rtn = new RegExp(obj.value, obj.flags);
+
 	} else {
 		throw "Unknown object type: " + obj.type;
 	}
@@ -928,6 +1004,14 @@ let _serialize = (obj) => {
 		for (let i = 0; i < obj.length; i++) {
 			val.push(_serialize(obj[i]));
 		}
+	} else if (obj instanceof RegExp) {
+		let expr = obj.toString().split('/');
+		let flags = expr.pop();
+		expr.shift();
+		expr = expr.join('/');
+		rtn.type = 'regexp';
+		rtn.value = expr;
+		rtn.flags = flags;
 	} else if (typeof obj === 'object' && obj !== null) {
 		rtn.type = 'object';
 		let keys = Object.keys(obj);
@@ -946,7 +1030,7 @@ let _serialize = (obj) => {
 
 	return rtn;
 };
-
+let _serialize_regexExpr = /^\/(.*)\/([a-zA-Z]*)$/g;
 
 
 /*
@@ -1064,6 +1148,49 @@ let _shapeOf_string_pattern = (...args) => {
 	if (pattern.test(obj))
 		return obj;
 };
+
+/**
+ * Validator for strings following email syntax.
+ *
+ * @param      {Object}  obj     The object in question
+ * @return     {Object}  Returns the object if valid, undefined otherwise
+ */
+let _shapeOf_string_email = (obj) => {
+	if (_shapeOf_string_email_regex.test(obj))
+		return obj;
+};
+let _shapeOf_string_email_regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\])|(([a-zA-Z0-9][a-zA-Z\-0-9]+\.)+(?![wW][eE][bB])[a-zA-Z]{2,}))$/;
+
+/**
+ * Validator for strings following IPv4 syntax.
+ *
+ * @param      {Object}  obj     The object in question
+ * @return     {Object}  Returns the object if valid, undefined otherwise
+ */
+let _shapeOf_string_ipv4 = (obj) => {
+	if (_shapeOf_string_ipv4_regex.test(obj))
+		return obj;
+};
+let _shapeOf_string_ipv4_regex = /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/;
+
+/**
+ * Validator for strings following IPv6 syntax.
+ *
+ * @param      {Object}  obj     The object in question
+ * @return     {Object}  Returns the object if valid, undefined otherwise
+ */
+let _shapeOf_string_ipv6 = (obj) => {
+	if (_shapeOf_string_ipv6_regex.test(obj))
+		return obj;
+};
+let _shapeOf_string_ipv6_o0 = '([0-9A-Fa-f]{1,4}:)';
+let _shapeOf_string_ipv6_o1 = '(:[0-9A-Fa-f]{1,4})';
+let _shapeOf_string_ipv6_o2 = '(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
+let _shapeOf_string_ipv6_regex = '^\\s*(({{O0}}{7}([0-9A-Fa-f]{1,4}|:))|({{O0}}{6}(:[0-9A-Fa-f]{1,4}|({{O2}}(\\.{{O2}}){3})|:))|({{O0}}{5}(({{O1}}{1,2})|:({{O2}}(\\.{{O2}}){3})|:))|({{O0}}{4}(({{O1}}{1,3})|({{O1}}?:({{O2}}(\\.{{O2}}){3}))|:))|({{O0}}{3}(({{O1}}{1,4})|({{O1}}{0,2}:({{O2}}(\\.{{O2}}){3}))|:))|({{O0}}{2}(({{O1}}{1,5})|({{O1}}{0,3}:({{O2}}(\\.{{O2}}){3}))|:))|({{O0}}{1}(({{O1}}{1,6})|({{O1}}{0,4}:({{O2}}(\\.{{O2}}){3}))|:))|(:(({{O1}}{1,7})|({{O1}}{0,5}:({{O2}}(\\.{{O2}}){3}))|:)))(%.+)?\\s*$';
+_shapeOf_string_ipv6_regex = _shapeOf_string_ipv6_regex.replace(/\{\{O0\}\}/g, _shapeOf_string_ipv6_o0);
+_shapeOf_string_ipv6_regex = _shapeOf_string_ipv6_regex.replace(/\{\{O1\}\}/g, _shapeOf_string_ipv6_o1);
+_shapeOf_string_ipv6_regex = _shapeOf_string_ipv6_regex.replace(/\{\{O2\}\}/g, _shapeOf_string_ipv6_o2);
+_shapeOf_string_ipv6_regex = new RegExp(_shapeOf_string_ipv6_regex);
 
 /**
  * Validator for length. Accepts either two or three arguments.
@@ -1264,10 +1391,40 @@ let _shapeOf_oneOfType = (...args) => {
 	}
 	let obj = args.pop();
 	let list = _flattenArgs(args);
-	for (let i = list.length - 1; i >= 0; i--) {
-		if (shapeOf(obj).shouldBe(list[i]))
+	let rtn;
+	for (let i = 0; i < list.length; i++) {
+		if (shapeOf(obj).shouldBeExactly(list[i]))
 			return obj;
 	}
+};
+
+/**
+ * Validator for an object that must match each of a specified type of one or more types.
+ * 
+ *   shapeOf.eachOf(shapeOf.string, shapeOf.number);
+ *   shapeOf.eachOf([shapeOf.string, shapeOf.number]);
+ *
+ * @param      {Array}   args    The arguments
+ * @return     {Object}  Returns the object if valid, undefined otherwise
+ */
+let _shapeOf_eachOf = (...args) => {
+	if (args.length < 2) {
+		throw 'eachOfType validator requires at least one argument';
+	}
+	let obj = args.pop();
+	let list = _flattenArgs(args);
+	for (let i = 0; i < list.length; i++) {
+		if (!shapeOf(obj).shouldBeExactly(list[i])) {
+			if (shapeOf.isValidator(list[i])) {
+				_validationLog(`Failed: Validator 'shapeOf.eachOf' -> '${list[i]._name}'`, obj);
+			} else {
+				_validationLog(`Failed: Validator 'shapeOf.eachOf' -> index ${i}`, obj);
+			}
+			return;
+		}
+	}
+	_validationLog('Passed: Validator "shapeOf.eachOf"', obj);
+	return obj;
 };
 
 /**
@@ -1355,7 +1512,38 @@ let _coreValidators = [
 		callback: _shapeOf_string_pattern,
 		options: {
 			parent: 'shapeOf.string',
+			aliases: 'shapeOf.string.matching',
 			requiredArgsCount: 1
+		}
+	},
+	{
+		name:     'shapeOf.string.email',
+		callback: _shapeOf_string_email,
+		options: {
+			parent: 'shapeOf.string',
+			aliases: 'shapeOf.string.asEmail'
+		}
+	},
+	{
+		name:     'shapeOf.string.IPv4',
+		callback: _shapeOf_string_ipv4,
+		options: {
+			parent: 'shapeOf.string',
+			aliases: [
+				'shapeOf.string.asIPV4',
+				'shapeOf.string.ipv4',
+			]
+		}
+	},
+	{
+		name:     'shapeOf.string.IPv6',
+		callback: _shapeOf_string_ipv6,
+		options: {
+			parent: 'shapeOf.string',
+			aliases: [
+				'shapeOf.string.asIPV6',
+				'shapeOf.string.ipv6',
+			]
 		}
 	},
 	{
@@ -1417,6 +1605,13 @@ let _coreValidators = [
 	{
 		name:     'shapeOf.oneOfType',
 		callback: _shapeOf_oneOfType,
+		options: {
+			requiredArgsCount: 1
+		}
+	},
+	{
+		name:     'shapeOf.eachOf',
+		callback: _shapeOf_eachOf,
 		options: {
 			requiredArgsCount: 1
 		}

@@ -22,7 +22,9 @@ Features include:
         1. [Primitive Number Type: Ranges, Minimums, and Maximums](#primitive-number-type-ranges-minimums-and-maximums)
         2. [Primitive String Type: Length](#primitive-string-type-length)
         3. [Primitive String Type: Regular Expressions](#primitive-string-type-regular-expressions)
-        4. [Primitive Array Type: Size](#primitive-array-type-size)
+        4. [Primitive String Type: IP Addresses](#primitive-string-type-ip-addresses)
+        5. [Primitive String Type: Email](#primitive-string-type-email)
+        6. [Primitive Array Type: Size](#primitive-array-type-size)
     2. [Composite/Strict Type Validators](#compositestrict-type-validators)
         1. [Composite Array Type: Size](#composite-array-type-size)
     3. [Custom Validators](#custom-validators)
@@ -116,7 +118,7 @@ let failingResult = shapeOf(malformedObj).shouldBeExactly(schema);   // false
 
 
 ## Optional Object Fields
-A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
+By default, any object fields described within a shapeOf schema are assumed as required fields. A schema describing an object type can include optional fields by using the `.optional` toggle with a standard shapeOf type validator. For example:
 ```javascript
 let schema = {
   'foo': shapeOf.string,
@@ -165,8 +167,21 @@ The `shapeOf.string` validator also supports minimum, maximum, and exact lengths
 The `shapeOf.string` validator also supports regular expressions:
 | Validator Function | Description |
 | ------------------ | ----------- |
-| `shapeOf.string.pattern(regex)` | Validates if the string matches the given pattern `regex`, which can be either a string or a RegExp object |
-| `shapeOf.string.pattern(regex, flags)` | Validates if the string matches the given pattern `regex` using `flags`, which `regex` can be either a string or a RegExp object |
+| `shapeOf.string.pattern(regex)`<br>`shapeOf.string.matching(regex)` | Validates if the string matches the given pattern `regex`, which can be either a string or a RegExp object |
+| `shapeOf.string.pattern(regex, flags)`<br>`shapeOf.string.matching(regex, flags)` | Validates if the string matches the given pattern `regex` using `flags`, which `regex` can be either a string or a RegExp object |
+
+#### Primitive String Type: IP Addresses
+The `shapeOf.string` validator also supports validating the IPv4 and IPv6 formats:
+| Validator Function | Description |
+| ------------------ | ----------- |
+| `shapeOf.string.ipv4`<br>`shapeOf.string.IPv4`<br>`shapeOf.string.asIPv4` | Validates if the string is of an IPv4 format. |
+| `shapeOf.string.ipv6`<br>`shapeOf.string.IPv6`<br>`shapeOf.string.asIPv6` | Validates if the string is of an IPv6 format. |
+
+#### Primitive String Type: Email
+The `shapeOf.string` validator also supports validating the IPv4 format:
+| Validator Function | Description |
+| ------------------ | ----------- |
+| `shapeOf.string.email`<br>`shapeOf.string.asEmail` | Validates if the string is of an email format.<br>_NOTE: This won't validate email addresses themselves, just the syntax._ |
 
 #### Primitive Array Type: Size
 The `shapeOf.array` validator also supports array sizes, which can be an exact element count or within a range of element counts:
@@ -184,6 +199,7 @@ In addition to primitive types, composites of primitive types are supported as w
 | Object Of <...> | `shapeOf.objectOf(...)` | Validates an object whose values are of one or more types |
 | One Of <...>   | `shapeOf.oneOf(...)` | Validates a value from an enumerated list of one or more values |
 | One Of Type <...> | `shapeOf.oneOfType(...)` | Validates an object to be of one of a set of types |
+| Each Of Type <...> | `shapeOf.eachOfType(...)` | Validates an object as being each of a set of types |
 
 An example of using composite validators:
 ```javascript
@@ -211,6 +227,35 @@ obj = {
   'baz': 42
 };
 schema = shapeOf.objectOf(shapeOf.number);
+result = shapeOf(obj).shouldBe(schema);   // false
+
+// Passing shapeOf.eachOf()
+obj = {
+    'foo': 'bar',
+    'baz': 42
+};
+schema = {
+    'foo': shapeOf.eachOf(                 // 'foo' field uses two validators
+        shapeOf.string.matching(/^b/gi),   // 1: String must start with a 'b'
+        shapeOf.string.ofSize(3)           // 2: String must be three characters long
+    ),
+    'baz': shapeOf.eachOf(                 // 'bar' field uses two validators
+        shapeOf.integer.greaterThanOrEqualTo(10),  // 1: Integer must be at least 10
+        shapeOf.integer.lessThanOrEqualTo(50)  // 2: Integer must be less than 50
+    )
+};
+result = shapeOf(obj).shouldBe(schema);   // true
+
+// Failing shapeOf.eachOf()
+obj = {
+    'foo': 'bar'
+};
+schema = {
+    'foo': shapeOf.eachOf(                 // 'foo' field uses two 
+        shapeOf.string.matching(/^b/gi),   // 1: String must start  with a 'b'
+        shapeOf.string.ofSize(4)           // 2: (fails) String must be four characters long
+    )
+};
 result = shapeOf(obj).shouldBe(schema);   // false
 ```
 
@@ -275,61 +320,61 @@ let arrayWithBar = shapeOf.Validator(
 
 To instantiate a new validator, use the `shapeOf.Validator()` function:
 <table>
-	<thead>
-		<tr>
-			<th colspan='3'><code>shapeOf.Validator(name, callback, options)</code></th>
-		</tr>
-		<tr>
-			<th>Parameter</th>
-			<th colspan='2'>Description</th>
-		</tr>
-	</thead>
-	<tbody>
-		<tr>
-			<td>
-				<code>name</code><br>
-				<em>String</em>
-			</td>
-			<td colspan='2'>The unique name of the validator. This name should be a dot-delimited namespace with the top-level represeting a package, i.e. <code>shapeOf.number</code>.</td>
-		</tr>
-		<tr>
-			<td>
-				<code>callback</code><br>
-				<em>Function</em>
-			</td>
-			<td colspan='2'><p>The function to execute whenever validation occurs. If no arguments are provided to the validator when defining the schema, the function should have only one argument representing the object in question passed to it.</p>
-			<p>If additional arguments are needed, they can be included as the first arguments to the function, with the last being the object in question.</p>
-			<p>When additional arguments are needed, they must be defined during instantiation of the schema. For instance, the validator <code>shapeOf.string.ofSize</code> accepts up to three arguments, with the first representing the minimum/maximum lengths and the last being the object. The callback to this then could be defined as either three individual arguments, or a set of variadic arguments.</p>
-			</td>
-		</tr>
-		<tr>
-			<td><code>options</code><br><em>Object</em></td>
-			<td colspan='2'>Key-value paired options used to configure the validator. The following list describes keys and their values:<br>
-				<ul>
-					<li>
-						<code><strong>parent</strong></code><br>
-						<em>String</em>, <em>Validator</em><br>
-						The parent validator to attach this to as a sub-validator. This value should either be the name of the parent or a Validator object serving as the parent. Upon attachment, this validator becomes available within the parent's validator chain, i.e. a sub-validator named <code>ofSize</code> or <code>shapeOf.string.ofSize</code> would become an accessible as <code>shapeOf.string.ofSize()</code> when the parent is set as <code>'shapeOf.string'</code>.
-					</li>
-					<li>
-						<code><strong>aliases</strong></code><br>
-						<em>String</em>, <em>Array&lt;String&gt;</em><br>
-						Alternative names for the validator. If attached to another validator as a sub-validator, both the name and aliases can be used to access the validator. For instance, if a validator's name is <code>pattern</code>, has the alias <code>regex</code>, and is attached as a sub-validator to <code>shapeOf.string</code>, then that validator could be referenced using either the statement <code>shapeOf.string.pattern</code> or <code>shapeOf.string.regex</code>.
-					</li>
-					<li>
-						<code><strong>optional</strong></code><br>
-						<em>Boolean</em><br>
-						Marks this validator as optional. When evaluating objects, if a field is absent but its validator is marked as optional, the object is still considered valid.
-					</li>
-					<li>
-						<code><strong>requiredArgsCount</strong></code><br>
-						<em>Integer</em><br>
-						<em>Defaults as 0</em>. The minimum number of required arguments for this validator. For example, if a validator named <code>regex</code> has its requiredArgsCount set to 1, any schema utilizing the function will throw an error if no arguments are provided.
-					</li>
-				</ul>
-			</td>
-		</tr>
-	</tbody>
+    <thead>
+        <tr>
+            <th colspan='3'><code>shapeOf.Validator(name, callback, options)</code></th>
+        </tr>
+        <tr>
+            <th>Parameter</th>
+            <th colspan='2'>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <code>name</code><br>
+                <em>String</em>
+            </td>
+            <td colspan='2'>The unique name of the validator. This name should be a dot-delimited namespace with the top-level represeting a package, i.e. <code>shapeOf.number</code>.</td>
+        </tr>
+        <tr>
+            <td>
+                <code>callback</code><br>
+                <em>Function</em>
+            </td>
+            <td colspan='2'><p>The function to execute whenever validation occurs. If no arguments are provided to the validator when defining the schema, the function should have only one argument representing the object in question passed to it.</p>
+            <p>If additional arguments are needed, they can be included as the first arguments to the function, with the last being the object in question.</p>
+            <p>When additional arguments are needed, they must be defined during instantiation of the schema. For instance, the validator <code>shapeOf.string.ofSize</code> accepts up to three arguments, with the first representing the minimum/maximum lengths and the last being the object. The callback to this then could be defined as either three individual arguments, or a set of variadic arguments.</p>
+            </td>
+        </tr>
+        <tr>
+            <td><code>options</code><br><em>Object</em></td>
+            <td colspan='2'>Key-value paired options used to configure the validator. The following list describes keys and their values:<br>
+                <ul>
+                    <li>
+                        <code><strong>parent</strong></code><br>
+                        <em>String</em>, <em>Validator</em><br>
+                        The parent validator to attach this to as a sub-validator. This value should either be the name of the parent or a Validator object serving as the parent. Upon attachment, this validator becomes available within the parent's validator chain, i.e. a sub-validator named <code>ofSize</code> or <code>shapeOf.string.ofSize</code> would become an accessible as <code>shapeOf.string.ofSize()</code> when the parent is set as <code>'shapeOf.string'</code>.
+                    </li>
+                    <li>
+                        <code><strong>aliases</strong></code><br>
+                        <em>String</em>, <em>Array&lt;String&gt;</em><br>
+                        Alternative names for the validator. If attached to another validator as a sub-validator, both the name and aliases can be used to access the validator. For instance, if a validator's name is <code>pattern</code>, has the alias <code>regex</code>, and is attached as a sub-validator to <code>shapeOf.string</code>, then that validator could be referenced using either the statement <code>shapeOf.string.pattern</code> or <code>shapeOf.string.regex</code>.
+                    </li>
+                    <li>
+                        <code><strong>optional</strong></code><br>
+                        <em>Boolean</em><br>
+                        Marks this validator as optional. When evaluating objects, if a field is absent but its validator is marked as optional, the object is still considered valid.
+                    </li>
+                    <li>
+                        <code><strong>requiredArgsCount</strong></code><br>
+                        <em>Integer</em><br>
+                        <em>Defaults as 0</em>. The minimum number of required arguments for this validator. For example, if a validator named <code>regex</code> has its requiredArgsCount set to 1, any schema utilizing the function will throw an error if no arguments are provided.
+                    </li>
+                </ul>
+            </td>
+        </tr>
+    </tbody>
 </table>
 
 
@@ -343,14 +388,14 @@ An example mutator:
 // Create a mutating validator that ensures an object is a string, and then converts it
 // to uppercase.
 let stringToUppercase = (obj) => {
-	if (typeof obj === 'string')
-		return obj.toUpperCase();
+    if (typeof obj === 'string')
+        return obj.toUpperCase();
 };
 let obj = {
-	'foo': 'bar'
+    'foo': 'bar'
 };
 let schema = {
-	'foo': stringToUppercase
+    'foo': stringToUppercase
 };
 
 let result = shapeOf(obj).shouldBe(schema);   // true, and mutates obj.foo to be 'BAR'
@@ -362,8 +407,8 @@ Resulting objects from a validation can also be returned from a `shapeOf()` call
 ```javascript
 // Create our string mutator.
 let stringToUppercase = (obj) => {
-	if (typeof obj === 'string')
-		return obj.toUpperCase();
+    if (typeof obj === 'string')
+        return obj.toUpperCase();
 };
 let obj = 'foo';
 let schema = stringToUppercase;
@@ -404,10 +449,10 @@ try {
 If details are needed on why an object is failing validation, the `.returnsResults` toggle can be used after a `shapeOf()` call:
 ```javascript
 let schema = {
-	'foo': shapeOf.string
+    'foo': shapeOf.string
 };
 let malformedObj = {
-	'foo': 42
+    'foo': 42
 };
 
 // Generate detailed results by using .returnsResults
@@ -480,8 +525,8 @@ let result = shapeOf(obj).onComplete(completeHandler).shouldBe(schema);   // tru
 Schemas can be serialized by using the `shapeOf.serialize()` function:
 ```javascript
 let schema = {
-	'first_name': shapeOf.string.ofSize(3, 50),
-	'last_name': shapeOf.string.ofSize(3, 50),
+    'first_name': shapeOf.string.ofSize(3, 50),
+    'last_name': shapeOf.string.ofSize(3, 50),
 };
 
 let serializedSchema = shapeOf.serialize(schema);   // returns a JSON-encoded string of the serialized schema
@@ -490,8 +535,8 @@ let serializedSchema = shapeOf.serialize(schema);   // returns a JSON-encoded st
 Schemas can then be reconstituted using the `shapeOf.deserialize()` function:
 ```javascript
 let schema = {
-	'first_name': shapeOf.string.ofSize(3, 50),
-	'last_name': shapeOf.string.ofSize(3, 50),
+    'first_name': shapeOf.string.ofSize(3, 50),
+    'last_name': shapeOf.string.ofSize(3, 50),
 };
 
 let serializedSchema = shapeOf.serialize(schema);   // returns a JSON-encoded string of the serialized schema
