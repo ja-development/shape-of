@@ -7,7 +7,7 @@
 const fs = require('fs');
 
 let readmeOriginal = fs.readFileSync('./README.md').toString().trim();
-let readme = readmeOriginal.split('\n')
+let readme = readmeOriginal.split('\n');
 let lib = fs.readFileSync('./index.js').toString().split('\n');
 let package = JSON.parse(fs.readFileSync('./package.json').toString());
 let expectedReadmeVersionLine = '# shapeOf v' + package.version;
@@ -67,7 +67,7 @@ readme.forEach((line, index) => {
 	if (line.startsWith('##')) {
 		if (line.indexOf('Table of Contents') === -1) {
 			let sectionIndent = line.split(' ')[0].length - 2;
-			let sectionName = line.replace(/^[#]+\W*/g, '');
+			let sectionName = line.replace(/^[#]+[^\w`]*/g, '');
 			let sectionID = sectionName.toLowerCase().replace(/[ ]/g, '-').replace(/[^a-zA-Z0-9\-]/g, '');
 			if (lastIndentLevel != sectionIndent) {
 				lastIndentLevel = sectionIndent;

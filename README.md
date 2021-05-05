@@ -1,11 +1,12 @@
 # shapeOf v0.0.7
-A lightweight schema validator and object mutator for JSON endpoints and Plain Old JavaScript Objects (POJOs).
+A lightweight schema validator and object mutator for JSON endpoints and Plain Old JavaScript Objects (POJOs). 
 
 Features include:
 - **Clear Syntax**: The shapeOf library was developed with simplicity in mind. Defined schemas are intended to be semantical and quick for a reader to understand.
 - **Flexible**: Schemas can be defined as anything from simple data types to elaborate schemas with custom validators.
 - **Customizable**: Custom validators can be introduced as sole functions, or can be wrapped as official validators that extend existing validators.
 - **Vaildator Pipeline**: Multiple validators can be applied to a single value, ensuring data is shaped exactly as intended.
+- **Mix-and-Match**: Combinations of validators and/or mutators can be applied to a single value using the shapeOf.eachOf composite validator.
 - **Mutators**: Validators can also be written as mutators, altering the object in question throughout the validation pipeline.
 - **Validation Details**: A validation process can generate details on why an object is invalid and/or which values mutated.
 - **Serializable Schemas**: Schemas can be serialized for storage or delivery and reconstituted through parsing the serialization later.
@@ -46,7 +47,7 @@ npm install shape-of
 
 
 ## Basic Usage
-A simple example of the `shapeOf()` function uses the `.shouldBe()` function to evaluate an object against a schema, which either returns a true or false value:
+A simple example of the `shapeOf()` function uses the `.is()` function to evaluate an object against a schema, which either returns a true or false value:
 ```javascript
 // Define a schema that expects an object with a 'foo' field, which is expected to be a string
 let schema = {
@@ -59,7 +60,8 @@ let obj = {
 };
 
 // Execute validation and store results in passingResult
-let passingResult = shapeOf(obj).shouldBe(schema);   // true
+let passingResult = shapeOf(obj).is(schema);   // true
+
 ```
 ```javascript
 // Invalid object shape ('foo' field is a number)
@@ -69,7 +71,7 @@ let schema = {
 let malformedObj = {
   'foo': 42
 };
-let failingResult = shapeOf(malformedObj).shouldBe(schema);   // false
+let failingResult = shapeOf(malformedObj).is(schema);   // false
 ```
 
 Nesting is also supported:
@@ -85,14 +87,14 @@ let obj = {
     'bar': 'baz'
   }
 };
-let result = shapeOf(obj).shouldBe(schema);   // true
+let result = shapeOf(obj).is(schema);   // true
 ```
 
-A call to `shapeOf()` will only perform validation once `.shouldBe()` or `.shouldBeExactly()` has been subsequently called.
+A call to `shapeOf()` will only perform validation once `.is()` or `.isExactly()` has been subsequently called.
 
 
 ## Strict Shape Enforcement
-Strict enforcement of object shapes are achieved with the `.shouldBeExactly()` function, which will fail objects with extraneous fields:
+Strict enforcement of object shapes are achieved with the `.isExactly()` function, which will fail objects with extraneous fields:
 ```javascript
 // Define the schema
 let schema = {
@@ -105,7 +107,7 @@ let obj = {
   'foo': 'bar',
   'baz': 'biz'
 };
-let passingResult = shapeOf(obj).shouldBeExactly(schema);   // true
+let passingResult = shapeOf(obj).isExactly(schema);   // true
 
 // Invalid object shape (contains the extraneous field 'bom', which isn't included in the schema)
 let malformedObj = {
@@ -127,7 +129,7 @@ let schema = {
 let obj = {
   'foo': 'bar'
 };
-let result = shapeOf(obj).shouldBe(schema);   // true, despite a missing optional 'baz' field
+let result = shapeOf(obj).is(schema);   // true, despite a missing optional 'baz' field
 ```
 
 
@@ -174,14 +176,14 @@ The `shapeOf.string` validator also supports regular expressions:
 The `shapeOf.string` validator also supports validating the IPv4 and IPv6 formats:
 | Validator Function | Description |
 | ------------------ | ----------- |
-| `shapeOf.string.ipv4`<br>`shapeOf.string.IPv4`<br>`shapeOf.string.asIPv4` | Validates if the string is of an IPv4 format. |
-| `shapeOf.string.ipv6`<br>`shapeOf.string.IPv6`<br>`shapeOf.string.asIPv6` | Validates if the string is of an IPv6 format. |
+| `shapeOf.string.ipv4`<br>`shapeOf.string.IPv4`<br>`shapeOf.string.ofIPv4` | Validates if the string is of an IPv4 format. |
+| `shapeOf.string.ipv6`<br>`shapeOf.string.IPv6`<br>`shapeOf.string.ofIPv6` | Validates if the string is of an IPv6 format. |
 
 #### Primitive String Type: Email
 The `shapeOf.string` validator also supports validating the IPv4 format:
 | Validator Function | Description |
 | ------------------ | ----------- |
-| `shapeOf.string.email`<br>`shapeOf.string.asEmail` | Validates if the string is of an email format.<br>_NOTE: This won't validate email addresses themselves, just the syntax._ |
+| `shapeOf.string.email`<br>`shapeOf.string.ofEmail` | Validates if the string is of an email format.<br>_NOTE: This won't validate email addresses themselves, rather just the syntax._ |
 
 #### Primitive Array Type: Size
 The `shapeOf.array` validator also supports array sizes, which can be an exact element count or within a range of element counts:
@@ -206,12 +208,12 @@ An example of using composite validators:
 // Passing shapeOf.arrayOf()
 let obj = ['foo', 'bar', 42, null];
 let schema = shapeOf.arrayOf(shapeOf.string, shapeOf.number, shapeOf.null);
-let result = shapeOf(obj).shouldBe(schema);   // true
+let result = shapeOf(obj).is(schema);   // true
 
 // Failing shapeOf.arrayOf()
 obj = [1, 2, 3];
 schema = shapeOf.arrayOf(shapeOf.string);
-result = shapeOf(obj).shouldBe(schema);   // false
+result = shapeOf(obj).is(schema);   // false
 
 // Passing shapeOf.objectOf()
 obj = {
@@ -219,7 +221,7 @@ obj = {
   'baz': 42
 };
 schema = shapeOf.objectOf(shapeOf.string, shapeOf.number);
-result = shapeOf(obj).shouldBe(schema);   // true
+result = shapeOf(obj).is(schema);   // true
 
 // Failing shapeOf.objectOf()
 obj = {
@@ -227,7 +229,7 @@ obj = {
   'baz': 42
 };
 schema = shapeOf.objectOf(shapeOf.number);
-result = shapeOf(obj).shouldBe(schema);   // false
+result = shapeOf(obj).is(schema);   // false
 
 // Passing shapeOf.eachOf()
 obj = {
@@ -244,7 +246,7 @@ schema = {
         shapeOf.integer.lessThanOrEqualTo(50)  // 2: Integer must be less than 50
     )
 };
-result = shapeOf(obj).shouldBe(schema);   // true
+result = shapeOf(obj).is(schema);   // true
 
 // Failing shapeOf.eachOf()
 obj = {
@@ -256,7 +258,7 @@ schema = {
         shapeOf.string.ofSize(4)           // 2: (fails) String must be four characters long
     )
 };
-result = shapeOf(obj).shouldBe(schema);   // false
+result = shapeOf(obj).is(schema);   // false
 ```
 
 #### Composite Array Type: Size
@@ -284,7 +286,7 @@ let obj = {
 let schema = {
   'foo': fooValidator   // the field 'foo' must pass fooValidator, which requires the value to be 'bar'
 };
-let result = shapeOf(obj).shouldBe(schema);   // true
+let result = shapeOf(obj).is(schema);   // true
 ```
 
 Composite types can also use custom validators for evaluating elements:
@@ -295,11 +297,11 @@ let fooValidator = (obj) => { if (obj === 'bar') return obj };
 // Test an array of 'bar' strings against a schema validating array elements using the fooValidator
 let obj = ['bar', 'bar', 'bar'];
 let schema = shapeOf.arrayOf(fooValidator);
-let result = shapeOf(obj).shouldBe(schema);   // true
+let result = shapeOf(obj).is(schema);   // true
 
 // Test using same schema but against a malformed object
 let failingObj = ['foo', 'bar', 'bar'];   // first element will fail, causing .shouldBe() to return false
-result = shapeOf(failingObj).shouldBe(failingObj);   // false
+result = shapeOf(failingObj).is(failingObj);   // false
 ```
 
 #### Advanced Custom Validators
@@ -398,7 +400,7 @@ let schema = {
     'foo': stringToUppercase
 };
 
-let result = shapeOf(obj).shouldBe(schema);   // true, and mutates obj.foo to be 'BAR'
+let result = shapeOf(obj).is(schema);   // true, and mutates obj.foo to be 'BAR'
 
 console.log(obj.foo);   // outputs 'BAR'
 ```
@@ -416,7 +418,7 @@ let schema = stringToUppercase;
 // By using the .returnsObject toggle, the returned result is instead the object in
 // question after mutation. In the event validation had failed, the resulting value
 // would've been undefined.
-let result = shapeOf(obj).returnsObject.shouldBe(schema);   // 'FOO'
+let result = shapeOf(obj).returnsObject.is(schema);   // 'FOO'
 ```
 
 
@@ -425,7 +427,7 @@ An evaluation of an object using `shapeOf()` can optionally throw an exception. 
 ```javascript
 let obj = [1, 2, 3];
 let schema = shapeOf.arrayOf(shapeOf.string);
-let result = shapeOf(obj).throwsOnInvalid.shouldBe(schema);   // throws an exception
+let result = shapeOf(obj).throwsOnInvalid.is(schema);   // throws an exception
 ```
 
 Custom exceptions can also be thrown by calling `.throwsOnInvalid()` and providing the error object as an argument:
@@ -437,7 +439,7 @@ let schema = shapeOf.objectOf(shapeOf.number);
 let customException = new Error('Custom exception');
 
 try {
-  shapeOf(obj).throwsOnInvalid(customException).shouldBe(schema);
+  shapeOf(obj).throwsOnInvalid(customException).is(schema);
 } catch (exception) {
   // this executes with exception === customException
   console.log('An exception was thrown during a shapeOf() validation', exception);
@@ -456,7 +458,7 @@ let malformedObj = {
 };
 
 // Generate detailed results by using .returnsResults
-let results = shapeOf(malformedObj).returnsResults.shouldBe(schema);
+let results = shapeOf(malformedObj).returnsResults.is(schema);
 
 // results = {
 //   success: false,
@@ -497,7 +499,7 @@ let obj = {
   'foo': 'bar'
 };
 let schema = shapeOf.object;
-let result = shapeOf(obj).onValid(validHandler).shouldBe(schema);   // true, and console output: Passed validation  {'foo': 'bar'}
+let result = shapeOf(obj).onValid(validHandler).is(schema);   // true, and console output: Passed validation  {'foo': 'bar'}
 ```
 
 Example of handling a failed validation by adding the `.onInvalid()` chain call after a `shapeOf()` call:
@@ -507,7 +509,7 @@ let obj = {
   'foo': 'bar'
 };
 let schema = shapeOf.array;
-let result = shapeOf(obj).onInvalid(invalidHandler).shouldBe(schema);   // false, and console output: Failed validation  {'foo': 'bar'}
+let result = shapeOf(obj).onInvalid(invalidHandler).is(schema);   // false, and console output: Failed validation  {'foo': 'bar'}
 ```
 
 Example of handling a completed validation by adding the `.onComplete()` chain call after a `shapeOf()` call:
@@ -517,7 +519,7 @@ let obj = {
   'foo': 'bar'
 };
 let schema = shapeOf.object;
-let result = shapeOf(obj).onComplete(completeHandler).shouldBe(schema);   // true, and console output: Validation complete  {'foo': 'bar'}
+let result = shapeOf(obj).onComplete(completeHandler).is(schema);   // true, and console output: Validation complete  {'foo': 'bar'}
 ```
 
 

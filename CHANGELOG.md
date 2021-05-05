@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.8
+
+__Implemented enhancements:__
+
+- Refactored _isCompatibleVer() function to avoid using costly forEach loops.
+
+##### Fixed bugs:
+
+- Changed validator alias on shapeOf.string.asIPv4 to shapeOf.string.ofIPv4, since the 'as' prefix is intended for mutators.
+- Changed validator alias on shapeOf.string.asIPv6 to shapeOf.string.ofIPv6, since the 'as' prefix is intended for mutators.
+- Changed validator alias on shapeOf.string.asEmail to shapeOf.string.ofEmail, since the 'as' prefix is intended for mutators.
+- Added the alias `shapeOf().is()`, which is equivalent to `shapeOf.shouldBe()`.
+- Added the alias `shapeOf().isExactly()`, which is equivalent to `shapeOf.shouldBeExactly()`.
+
 ## v0.0.7 (2021-04-04)
 
 __Implemented enhancements:__

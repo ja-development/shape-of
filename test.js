@@ -81,8 +81,8 @@ let expect = (expr) => {
             markStart();
             if (!expr) {
                 tracer('\n\u001b[31mFailed\u001b[0m ({point})' +
-                       '\n    expected: a truthy value' +
-                       '\n    result:   ' + expr);
+                       '\n       expected: a truthy value' +
+                       '\n       result:   ' + expr);
                 markFailed();
             } else {
                 markPassed();
@@ -92,8 +92,8 @@ let expect = (expr) => {
             markStart();
             if (expr) {
                 tracer('\n\u001b[31mFailed\u001b[0m ({point})' +
-                       '\n    expected: a falsy value' +
-                       '\n    result:   ' + expr);
+                       '\n       expected: a falsy value' +
+                       '\n       result:   ' + expr);
                 markFailed();
             } else {
                 markPassed();
@@ -103,8 +103,8 @@ let expect = (expr) => {
             markStart();
             if (expr != val) {
                 tracer('\n\u001b[31mFailed\u001b[0m ({point})' +
-                       '\n    expected: ' + val +
-                       '\n    result:   ' + expr);
+                       '\n       expected: ' + val +
+                       '\n       result:   ' + expr);
                 markFailed();
             } else {
                 markPassed();
@@ -121,11 +121,38 @@ let valid = (obj, schema) => {
 let invalid = (obj, schema) => {
     callbackVal = false;
 };
+let result;
+let caught;
+let errorObj;
+let errorObjCaught;
+let fooValidator;
+let doubleMutator;
+let addOneMutator;
+let uppercaseMutator;
+let lowercaseMutator;
+let obj;
+let obj2;
+let obj2Schema;
+let obj3;
+let obj3Schema;
+let schemaToSerialize;
+let serializedSchemaTest;
+let serializedSchema;
+let deserializedSchema;
+let reserializedSchema;
+let serializedExpr;
+let schemaExpr;
+let resultsSchema;
+let resultsObj;
+let results;
+let mutatorResultsSchema;
+
 
 
 //
 // Tests
 //
+
 
 
 // Testing types and exact value matches
@@ -134,6 +161,12 @@ expect(
 ).isTruthy();
 expect(
     shapeOf({'foo': 'bar'}).shouldBe({'foo': 'biz'})
+).isFalsy();
+expect(
+    shapeOf({'foo': 'bar'}).is({'foo': shapeOf.string})
+).isTruthy();
+expect(
+    shapeOf({'foo': 'bar'}).is({'foo': 'biz'})
 ).isFalsy();
 
 
@@ -164,6 +197,13 @@ expect(
     ))
 ).isTruthy();
 expect(
+    shapeOf({foo: 'bar'}).isExactly(shapeOf.each(
+        shapeOf.object,
+        {foo: 'bar'},
+        shapeOf.objectOf(shapeOf.string)
+    ))
+).isTruthy();
+expect(
     shapeOf({foo: 'bar'}).shouldBeExactly(shapeOf.eachOf(
         shapeOf.object,
         {foo: 'bar'},
@@ -171,21 +211,21 @@ expect(
         shapeOf.null
     ))
 ).isFalsy();
-// expect(
-//     shapeOf({
-//         'foo': 'bar',
-//         'baz': 42
-//     }).shouldBe({
-//         'foo': shapeOf.eachOf(
-//             shapeOf.string.matching(/^b/gi),
-//             shapeOf.string.ofSize(3)
-//         ),
-//         'baz': shapeOf.eachOf(
-//             shapeOf.integer.greaterThanOrEqualTo(10),
-//             shapeOf.integer.lessThanOrEqualTo(50)
-//         )
-//     })
-// ).isTruthy();
+expect(
+    shapeOf({
+        'foo': 'bar',
+        'baz': 42
+    }).shouldBe({
+        'foo': shapeOf.eachOf(
+            shapeOf.string.matching(/^b/gi),
+            shapeOf.string.ofSize(3)
+        ),
+        'baz': shapeOf.eachOf(
+            shapeOf.integer.greaterThanOrEqualTo(10),
+            shapeOf.integer.lessThanOrEqualTo(50)
+        )
+    })
+).isTruthy();
 
 // Testing arrays
 expect(
@@ -286,7 +326,7 @@ expect(
 
 
 // Testing callbacks for .onValid()/.onInvalid()
-let result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.number));
+result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.number));
 expect(callbackVal).isTruthy();
 
 result = shapeOf([1,2,3]).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.string));
@@ -294,7 +334,7 @@ expect(callbackVal).isFalsy();
 
 
 // Testing .throwsOnInvalid/.throwsOnInvalid()
-let caught = false;
+caught = false;
 try {
     shapeOf('foo').throwsOnInvalid.shouldBe(shapeOf.null);
 } catch {
@@ -310,8 +350,7 @@ try {
 expect(result).is(123);
 expect(callbackVal).is(false); // both .onInvalid() callback and the catch to .throwsOnInvalid block should execute
 
-let errorObj = new Error('Test error');
-let errorObjCaught;
+errorObj = new Error('Test error');
 try {
     result = shapeOf([1,2,3]).throwsOnInvalid(errorObj).onValid(valid).onInvalid(invalid).shouldBe(shapeOf.arrayOf(shapeOf.string));
 } catch (error) {
@@ -321,7 +360,7 @@ expect(errorObjCaught).is(errorObj);
 
 
 // Testing custom validators
-let fooValidator = (obj) => { if (obj === 'bar') return obj };
+fooValidator = (obj) => { if (obj === 'bar') return obj };
 expect(
     shapeOf({'foo': 'bar'}).shouldBe({'foo': fooValidator})
 ).isTruthy();
@@ -468,13 +507,13 @@ expect(
 
 // Testing string email address patterns
 expect(
-    shapeOf('jeff@jeff-allen.dev').shouldBeExactly(shapeOf.string.asEmail)
+    shapeOf('jeff@jeff-allen.dev').shouldBeExactly(shapeOf.string.ofEmail)
 ).isTruthy();
 expect(
-    shapeOf('foo@bar@baz.com').shouldBeExactly(shapeOf.string.asEmail)
+    shapeOf('foo@bar@baz.com').shouldBeExactly(shapeOf.string.ofEmail)
 ).isFalsy();
 expect(
-    shapeOf('@baz.com').shouldBeExactly(shapeOf.string.asEmail)
+    shapeOf('@baz.com').shouldBeExactly(shapeOf.string.ofEmail)
 ).isFalsy();
 expect(
     shapeOf('.jeff@jeff-allen.dev').shouldBeExactly(shapeOf.string.email)
@@ -569,28 +608,28 @@ expect(
 ).isTruthy();
 
 // Testing mutation
-let doubleMutator = (obj) => {
+doubleMutator = (obj) => {
     if (typeof obj === 'object' && typeof obj.foo === 'number') {
         obj.foo = obj.foo * 2;
         return obj;
     }
 };
-let addOneMutator = (obj) => {
+addOneMutator = (obj) => {
     if (typeof obj === 'number')
         return obj + 1;
 };
-let uppercaseMutator = (obj) => {
+uppercaseMutator = (obj) => {
     if (typeof obj === 'string')
         return obj.toUpperCase();
 };
-let lowercaseMutator = (obj) => {
+lowercaseMutator = (obj) => {
     if (typeof obj === 'string')
         return obj.toLowerCase();
 };
-let obj = {
+obj = {
     'foo': 2
 };
-let obj2 = {
+obj2 = {
     first: {
         'foo': 100
     },
@@ -598,22 +637,22 @@ let obj2 = {
     third: 'hello',
     fourth: ['FOO', 'BAR']
 };
-let obj2Schema = {
+obj2Schema = {
     first: doubleMutator,
     second: addOneMutator,
     third: uppercaseMutator,
     fourth: shapeOf.arrayOf(lowercaseMutator)
 };
-let obj3 = {
+obj3 = {
     first: 'foo',
     second: 'bar',
     third: 'baz'
-}
-let obj3Schema = {
+};
+obj3Schema = {
     first: uppercaseMutator,
     second: uppercaseMutator,
     third: uppercaseMutator
-}
+};
 expect(
     shapeOf(obj).shouldBe(doubleMutator)
 ).isTruthy();
@@ -662,14 +701,14 @@ obj = {
     "sex": "Other",
     "three_favorite_things": ["Pizza", "Ice Cream", "Sandwiches"],
 };
-let schemaToSerialize = {
+schemaToSerialize = {
     "first_name": shapeOf.string.ofSize(3, 25),
     "last_name": "Bar",
     "title": shapeOf.optional.string.ofSize(2, 15),
     "sex": shapeOf.oneOf("Male", "Female", "Other"),
     "three_favorite_things": shapeOf.arrayOf(shapeOf.string, shapeOf.number).ofSize(3)
 };
-let serializedSchemaTest = {
+serializedSchemaTest = {
     "_shapeOfVersion": shapeOf.version,
     "_shapeOfSchemaVersion": shapeOf.compatibleSchemaVersion,
     "schema": {
@@ -812,13 +851,13 @@ let serializedSchemaTest = {
         ]
     }
 };
-let serializedSchema = JSON.parse(shapeOf.serialize(schemaToSerialize));
+serializedSchema = JSON.parse(shapeOf.serialize(schemaToSerialize));
 expect(
     shapeOf(serializedSchema).shouldBeExactly(serializedSchemaTest)
 ).isTruthy();
 
-let deserializedSchema = shapeOf.deserialize(shapeOf.serialize(schemaToSerialize));
-let reserializedSchema = JSON.parse(shapeOf.serialize(deserializedSchema));
+deserializedSchema = shapeOf.deserialize(shapeOf.serialize(schemaToSerialize));
+reserializedSchema = JSON.parse(shapeOf.serialize(deserializedSchema));
 expect(
     shapeOf(reserializedSchema).shouldBeExactly(serializedSchemaTest)
 ).isTruthy();
@@ -827,23 +866,23 @@ expect(
     shapeOf(obj).shouldBeExactly(shapeOf.deserialize(reserializedSchema))
 ).isTruthy();
 
-let serializedExpr = shapeOf.serialize(shapeOf.string.pattern(/^test-pattern$/gi));
-let schemaExpr = shapeOf.deserialize(serializedExpr);
+serializedExpr = shapeOf.serialize(shapeOf.string.pattern(/^test-pattern$/gi));
+schemaExpr = shapeOf.deserialize(serializedExpr);
 expect(
     shapeOf('TEST-PATTERN').shouldBe(schemaExpr)
 ).isTruthy();
 
 
 // Test results using .returnsResults
-let resultsSchema = {
+resultsSchema = {
     'foo': shapeOf.string,
     'bar': shapeOf.string,
 };
-let resultsObj = {
+resultsObj = {
     'foo': 42,
     'bar': 'baz',
 };
-let results = shapeOf(resultsObj).returnsResults.shouldBe(resultsSchema);
+results = shapeOf(resultsObj).returnsResults.shouldBe(resultsSchema);
 expect(
     results.log.length
 ).is(3);
@@ -854,7 +893,7 @@ expect(
     results.success
 ).isFalsy();
 
-let mutatorResultsSchema = {
+mutatorResultsSchema = {
     'foo': (obj) => {if (typeof obj === 'number') return obj + 1;},
     'bar': (obj) => {if (typeof obj === 'string') return obj.toUpperCase();},
 };

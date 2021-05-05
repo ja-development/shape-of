@@ -79,9 +79,15 @@ let _isInteger = Number.isInteger || ((val) => {
  */
 let _isCompatibileVersion = (currentVer, compatibleVer) => {
 	currentVer = currentVer.split('.');
-	currentVer.forEach((n, i) => currentVer[i] = parseInt(n));
 	compatibleVer = compatibleVer.split('.');
-	compatibleVer.forEach((n, i) => compatibleVer[i] = parseInt(n));
+	if (currentVer.length !== 3 || compatibleVer.length !== 3)
+		throw 'Bad version format';
+	currentVer[0] = parseInt(currentVer[0]);
+	currentVer[1] = parseInt(currentVer[1]);
+	currentVer[2] = parseInt(currentVer[2]);
+	compatibleVer[0] = parseInt(compatibleVer[0]);
+	compatibleVer[1] = parseInt(compatibleVer[1]);
+	compatibleVer[2] = parseInt(compatibleVer[2]);
 	return currentVer[0] >= compatibleVer[0] && 
 	       (currentVer[1] >= compatibleVer[1] || currentVer[0] > compatibleVer[0]) &&
 	       (currentVer[2] >= compatibleVer[2] || currentVer[1] > compatibleVer[1]);
@@ -119,10 +125,10 @@ let _buildActions = (thisObj, obj, options) => {
 	let exclude = options.exclude;
 
 	if (exclude.indexOf('shouldBe') === -1)
-		rtn.shouldBe = _shouldBe.bind(thisObj, { obj, ...options });
+		rtn.shouldBe = rtn.is = _shouldBe.bind(thisObj, { obj, ...options });
 
 	if (exclude.indexOf('shouldBeExactly') === -1)
-		rtn.shouldBeExactly = _shouldBe.bind(thisObj, { obj, exact: true, ...options });
+		rtn.shouldBeExactly = rtn.isExactly = _shouldBe.bind(thisObj, { obj, exact: true, ...options });
 
 	if (exclude.indexOf('returnsObject') === -1)
 		rtn.returnsObject = _returnsObject(thisObj, { obj, ...options });
@@ -131,7 +137,7 @@ let _buildActions = (thisObj, obj, options) => {
 		rtn.returnsResults = _returnsResults(thisObj, { obj, ...options });
 
 	if (exclude.indexOf('shouldNotBe') === -1)
-		rtn.shouldNotBe = ((obj, schema) => !_shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
+		rtn.shouldNotBe = rtn.isNot = ((obj, schema) => !_shouldBe(obj, schema)).bind(thisObj, { obj, ...options });
 
 	if (exclude.indexOf('throwsOnInvalid') === -1)
 		rtn.throwsOnInvalid = _buildThrowsOnExceptionActions(thisObj, obj, options);
@@ -1521,7 +1527,7 @@ let _coreValidators = [
 		callback: _shapeOf_string_email,
 		options: {
 			parent: 'shapeOf.string',
-			aliases: 'shapeOf.string.asEmail'
+			aliases: 'shapeOf.string.ofEmail'
 		}
 	},
 	{
@@ -1530,7 +1536,7 @@ let _coreValidators = [
 		options: {
 			parent: 'shapeOf.string',
 			aliases: [
-				'shapeOf.string.asIPV4',
+				'shapeOf.string.ofIPv4',
 				'shapeOf.string.ipv4',
 			]
 		}
@@ -1541,7 +1547,7 @@ let _coreValidators = [
 		options: {
 			parent: 'shapeOf.string',
 			aliases: [
-				'shapeOf.string.asIPV6',
+				'shapeOf.string.ofIPv6',
 				'shapeOf.string.ipv6',
 			]
 		}
@@ -1613,6 +1619,7 @@ let _coreValidators = [
 		name:     'shapeOf.eachOf',
 		callback: _shapeOf_eachOf,
 		options: {
+			aliases: 'shapeOf.each',
 			requiredArgsCount: 1
 		}
 	},
