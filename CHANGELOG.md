@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.8
+## v0.0.8 (2021-05-04)
 
 __Implemented enhancements:__
 
