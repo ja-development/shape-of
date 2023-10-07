@@ -125,7 +125,8 @@ let _buildActions = (thisObj, obj, options) => {
 	let exclude = options.exclude;
 
 	if (exclude.indexOf('shouldBe') === -1)
-		rtn.shouldBe = rtn.is = _shouldBe.bind(thisObj, { obj, ...options });
+		rtn.shouldBe = _shouldBe.bind(thisObj, { obj, ...options });
+		rtn.is = rtn.shouldBe;
 
 	if (exclude.indexOf('shouldBeExactly') === -1)
 		rtn.shouldBeExactly = rtn.isExactly = _shouldBe.bind(thisObj, { obj, exact: true, ...options });
@@ -1679,9 +1680,10 @@ shapeOf._versionCompatibilityHistory = { // version: compatibleSchemaVersion
 	'0.0.7': '0.0.7',
 	'0.0.6': '0.0.6',
 	'0.0.8': '0.0.8',
+	'0.0.9': '0.0.8',
 	'0.0.5': '0.0.5',
 }; // end of shapeOf._versionCompatibilityHistory
-shapeOf.version = "0.0.8"; // core version
+shapeOf.version = "0.0.9"; // core version
 shapeOf.compatibleSchemaVersion = "0.0.8"; // compatible schema version
 
 
