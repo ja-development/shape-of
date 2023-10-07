@@ -1,4 +1,4 @@
-# shapeOf v0.0.8
+# shapeOf v0.0.9
 A lightweight schema validator and object mutator for JSON endpoints and Plain Old JavaScript Objects (POJOs). 
 
 Features include:
